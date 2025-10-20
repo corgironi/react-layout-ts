@@ -1,0 +1,176 @@
+/* 主布局容器 */
+.layout {
+  min-height: 100vh;
+  display: flex;
+  background-color: var(--secondary);
+  overflow: hidden;
+  position: relative; /* 添加相對定位 */
+}
+
+/* 側邊欄 */
+.sidebar {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--sidebar-width);
+  background: var(--card-bg);
+  transition: all 0.3s ease;
+  z-index: 1000;
+  border-right: 1px solid var(--border);
+}
+
+/* 主要內容區域 */
+.mainContent {
+  flex: 1;
+  margin-left: var(--sidebar-width);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  width: calc(100vw - var(--sidebar-width));
+  background-color: var(--secondary); /* 添加背景顏色 */
+}
+
+/* Header 部分 */
+.headerContainer {
+  height: var(--header-height);
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border);
+  z-index: 999;
+  width: 100%; /* 確保寬度 100% */
+}
+
+/* 內容包裝器 */
+.contentWrapper {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--secondary);
+  width: 100%;
+  padding: 0; /* 移除內邊距 */
+}
+
+/* 頁面容器 */
+.pageContainer {
+  min-height: calc(100vh - var(--header-height));
+  width: 100%;
+  background-color: var(--secondary); /* 添加背景顏色 */
+}
+
+/* 側邊欄收起時的樣式 */
+.sidebarCollapsed .sidebar {
+  width: var(--sidebar-mini-width);
+}
+
+.sidebarCollapsed .mainContent {
+  margin-left: var(--sidebar-mini-width);
+  width: calc(100vw - var(--sidebar-mini-width));
+}
+
+/* 響應式調整 */
+@media (max-width: 1024px) {
+  .contentWrapper {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  .mainContent {
+    margin-left: 0;
+    width: 100vw;
+  }
+
+  .sidebarCollapsed .sidebar {
+    transform: translateX(0);
+  }
+
+  .sidebarCollapsed .mainContent {
+    margin-left: 0;
+    width: 100vw;
+  }
+}
+
+/* Footer 部分 */
+.footer {
+  flex: 0 0 var(--footer-height);
+  background: var(--card-bg);
+  border-top: 1px solid var(--border);
+}
+
+/* 頁面內容 */
+.pageWrapper {
+  background: var(--card-bg);
+  border-radius: 0.5rem;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
+  padding: 1.5rem;
+  min-height: calc(100vh - var(--header-height) - 3rem);
+}
+
+/* 頁面標題區域 */
+.pageHeader {
+  margin: -2rem -2rem 2rem;
+  padding: 2rem;
+  background: var(--primary-gradient);
+  color: white;
+  border-radius: 1rem 1rem 0 0;
+}
+
+.pageHeader h1 {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.pageHeader p {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+/* 卡片樣式 */
+.card {
+  background: var(--card-bg);
+  border-radius: 0.75rem;
+  box-shadow: 0 0 2rem 0 rgba(136, 152, 170, .15);
+  margin-bottom: 2rem;
+  transition: all 0.3s;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 2rem 0 rgba(136, 152, 170, .2);
+}
+
+.cardHeader {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--secondary);
+}
+
+.cardBody {
+  padding: 1.5rem;
+}
+
+/* 滾動條樣式 */
+.pageWrapper::-webkit-scrollbar {
+  width: 6px;
+}
+
+.pageWrapper::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.pageWrapper::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+.pageWrapper::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+} 

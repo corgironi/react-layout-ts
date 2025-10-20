@@ -1,0 +1,258 @@
+/* WarningBanner 主容器 */
+.warningBanner {
+  margin: 1.5rem 0;
+  padding: 0;
+}
+
+.bannerHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.bannerTitle {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.itemCount {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  background: var(--hover);
+  padding: 0.25rem 0.75rem;
+  border-radius: 1rem;
+}
+
+/* 警告卡片網格 */
+.bannerGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1rem;
+}
+
+.warningCard {
+  background: var(--card-bg);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.warningCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+/* 警告級別樣式 */
+.level-info {
+  border-left: 4px solid var(--info);
+  background: linear-gradient(135deg, 
+    rgba(var(--info-rgb), 0.05) 0%, 
+    rgba(var(--info-rgb), 0.02) 100%);
+}
+
+.level-warning {
+  border-left: 4px solid var(--warning);
+  background: linear-gradient(135deg, 
+    rgba(var(--warning-rgb), 0.05) 0%, 
+    rgba(var(--warning-rgb), 0.02) 100%);
+}
+
+.level-critical {
+  border-left: 4px solid var(--danger);
+  background: linear-gradient(135deg, 
+    rgba(var(--danger-rgb), 0.05) 0%, 
+    rgba(var(--danger-rgb), 0.02) 100%);
+}
+
+/* 卡片頭部 */
+.cardHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.levelIcon {
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  margin-top: 0.125rem;
+}
+
+.cardInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTitle {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem 0;
+  line-height: 1.4;
+}
+
+.systemName {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  background: var(--hover);
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.375rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+.cardActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.timestamp {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.dismissBtn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+  line-height: 1;
+  width: 1.5rem;
+  height: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dismissBtn:hover {
+  background: var(--hover);
+  color: var(--text-primary);
+}
+
+/* 卡片內容 */
+.cardContent {
+  margin-bottom: 0.75rem;
+}
+
+.warningMessage {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  line-height: 1.5;
+  margin: 0 0 0.75rem 0;
+}
+
+.warningData {
+  background: var(--hover);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  margin-top: 0.75rem;
+}
+
+.dataItem {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+}
+
+.dataItem:last-child {
+  margin-bottom: 0;
+}
+
+.dataKey {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.dataValue {
+  font-size: 0.75rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 卡片底部 */
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.creators {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.creatorTag {
+  font-size: 0.625rem;
+  color: var(--text-secondary);
+  background: var(--hover);
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .bannerGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .cardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+  
+  .cardActions {
+    flex-direction: row;
+    align-items: center;
+    width: 100%;
+    justify-content: space-between;
+  }
+  
+  .warningCard {
+    padding: 0.875rem;
+  }
+}
+
+/* 暗色主題特殊調整 */
+[data-theme='dark'] .level-info {
+  background: linear-gradient(135deg, 
+    rgba(var(--info-rgb), 0.1) 0%, 
+    rgba(var(--info-rgb), 0.05) 100%);
+}
+
+[data-theme='dark'] .level-warning {
+  background: linear-gradient(135deg, 
+    rgba(var(--warning-rgb), 0.1) 0%, 
+    rgba(var(--warning-rgb), 0.05) 100%);
+}
+
+[data-theme='dark'] .level-critical {
+  background: linear-gradient(135deg, 
+    rgba(var(--danger-rgb), 0.1) 0%, 
+    rgba(var(--danger-rgb), 0.05) 100%);
+}
+
+[data-theme='dark'] .warningCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}

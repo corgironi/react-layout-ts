@@ -1,0 +1,181 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.alert {
+  background: var(--card-bg);
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  max-width: 600px;
+  width: 90%;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: slideIn 0.2s ease-out;
+  border: 1px solid var(--border);
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.5rem 1.5rem 0;
+}
+
+.title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.closeButton:hover {
+  background: var(--hover);
+  color: var(--text-primary);
+}
+
+.content {
+  padding: 1.5rem 1.5rem;
+}
+
+.message {
+  margin: 0;
+  color: var(--text-primary);
+  line-height: 1.8;
+  font-size: 0.95rem;
+  white-space: pre-line;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  padding: 0 1.5rem 1.5rem;
+  justify-content: flex-end;
+}
+
+.button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid transparent;
+  min-width: 100px;
+}
+
+.cancelButton {
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border);
+}
+
+.cancelButton:hover {
+  background: var(--hover);
+  color: var(--text-primary);
+}
+
+.confirmButton {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+.confirmButton:hover {
+  background: var(--primary);
+  opacity: 0.9;
+  transform: translateY(-1px);
+}
+
+/* 不同類型的樣式 */
+.warning .title {
+  color: var(--warning);
+}
+
+.error .title {
+  color: var(--danger);
+}
+
+.success .title {
+  color: var(--success);
+}
+
+.info .title {
+  color: var(--info);
+}
+
+.warning .confirmButton {
+  background: var(--warning);
+  border-color: var(--warning);
+}
+
+.error .confirmButton {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.success .confirmButton {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+/* 響應式調整 */
+@media (max-width: 480px) {
+  .alert {
+    margin: 1rem;
+    width: calc(100% - 2rem);
+  }
+  
+  .actions {
+    flex-direction: column-reverse;
+  }
+  
+  .button {
+    width: 100%;
+  }
+} 

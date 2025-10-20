@@ -1,0 +1,139 @@
+.sidebar {
+  height: 100%;
+  width: var(--sidebar-width);
+  background: var(--card-bg);
+  transition: all 0.3s;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.sidebar.collapsed {
+  width: var(--sidebar-mini-width);
+}
+
+.sidebarHeader {
+  height: var(--header-height);
+  display: flex;
+  align-items: center;
+  padding: 0 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  flex: 1;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.logoSmall {
+  display: none;
+}
+
+.collapsed .logoLarge {
+  display: none;
+}
+
+.collapsed .logoSmall {
+  display: block;
+}
+
+.collapseBtn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s;
+}
+
+.collapseBtn:hover {
+  color: var(--primary);
+}
+
+.nav {
+  flex: 1;
+  padding: 1.25rem 0;
+  overflow-y: auto;
+}
+
+.navGroup {
+  margin-bottom: 1.5rem;
+}
+
+.navTitle {
+  padding: 0.5rem 1.5rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.collapsed .navTitle {
+  display: none;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1.5rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all 0.3s;
+  margin: 0.25rem 0;
+}
+
+.navItem i {
+  width: 1.25rem;
+  margin-right: 1rem;
+  font-size: 1rem;
+  color: var(--text-secondary);
+  transition: color 0.3s;
+}
+
+.collapsed .navItem span {
+  display: none;
+}
+
+.navItem:hover {
+  background: var(--hover);
+  color: var(--primary);
+}
+
+.navItem:hover i {
+  color: var(--primary);
+}
+
+.navItem.active {
+  background: var(--primary-gradient);
+  color: white;
+}
+
+.navItem.active i {
+  color: white;
+}
+
+/* 滾動條樣式 */
+.nav::-webkit-scrollbar {
+  width: 4px;
+}
+
+.nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+} 

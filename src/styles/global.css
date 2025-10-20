@@ -1,0 +1,229 @@
+:root {
+  /* 添加 RGB 值用於透明度計算 */
+  --primary-rgb-light: 122, 184, 255;  /* #7AB8FF 的 RGB 值 */
+  --primary-rgb-dark: 11, 47, 74;    /* #0B2F4A 的 RGB 值 */
+  --danger-rgb: 255, 99, 71;           /* #FF6347 的 RGB 值 */
+  --success-rgb: 76, 175, 80;          /* #4CAF50 的 RGB 值 */
+  --warning-rgb: 255, 193, 7;          /* #FFC107 的 RGB 值 */
+  --info-rgb: 33, 150, 243;            /* #2196F3 的 RGB 值 */
+
+  /* Light Theme Colors */
+  --primary-light: #6259ca;
+  --primary-gradient-light: linear-gradient(to right, #6259ca 0%, #8074e7 100%);
+  --secondary-light: #ffffff;  /* 改為純白色 */
+  --text-primary-light: #1d212f;
+  --text-secondary-light: #74829c;
+  /* --sidebar-bg-light: #ffffff; */
+  --header-bg-light: var(--primary-gradient-light);
+  --card-bg-light: #ffffff;
+  --hover-light: #f6f6f6;
+  --border-light: #e9edf4;
+  --logo-bg-light: #E6F0FF;
+  --success-dark: #2E7D32;
+  --info-dark: #1565C0;
+  --warning-dark: #F57C00;
+  --danger-dark: #C62828;
+
+  /* Dark Theme Colors */
+  --primary-dark: #6259ca;
+  --primary-gradient-dark: linear-gradient(to right, #6259ca 0%, #8074e7 100%);
+  --secondary-dark: #0e0e23;  /* 確保暗色主題的背景色夠深 */
+  --text-primary-dark: #dedefd;
+  --text-secondary-dark: #8e9bb5;
+  /* --sidebar-bg-dark: #0B2F4A; */
+  --header-bg-dark: var(--primary-gradient-dark);
+  --card-bg-dark: #1a1a3c;
+  --hover-dark: rgba(98, 89, 202, 0.1);
+  --border-dark: #2d2d4a;
+  --logo-bg-dark: #1A365D;
+  --success-dark: #2E7D32;
+  --info-dark: #1565C0;
+  --warning-dark: #F57C00;
+  --danger-dark: #C62828;
+
+  /* 新增暗色主題特定的文字顏色 */
+  --text-title-dark: #FFFFFF;      /* 標題文字 */
+  --text-subtitle-dark: #CBD5E0;   /* 副標題文字 */
+  --text-muted-dark: #718096;      /* 次要資訊文字 */
+  --text-hover-dark: #A0CFFF;      /* 懸浮時的文字顏色 */
+
+  /* Common Variables */
+  --header-height: 64px;
+  --footer-height: 60px;
+  --sidebar-width: 240px;
+  --sidebar-mini-width: 70px;
+  --content-padding: 1.5rem;
+  --success: #28a745;
+  --info: #17a2b8;
+  --warning: #ffc107;
+  --danger: #dc3545;
+
+  /* 狀態顏色的 RGB 值 */
+  --success-rgb: 40, 167, 69;
+  --warning-rgb: 255, 193, 7;
+  --danger-rgb: 220, 53, 69;
+  --info-rgb: 23, 162, 184;
+}
+
+[data-theme='light'] {
+  --primary: var(--primary-light);
+  --primary-gradient: var(--primary-gradient-light);
+  --secondary: var(--secondary-light);
+  --text-primary: var(--text-primary-light);
+  --text-secondary: var(--text-secondary-light);
+  --text-muted: #999999;
+  --background: #FFFFFF;
+  --card-bg: var(--card-bg-light);
+  --hover: var(--hover-light);
+  --border: var(--border-light);
+  --primary-rgb: var(--primary-rgb-light);
+  --table-header-bg: #f8f9fa;
+  --table-hover: #f8f9fa;
+  --logo-bg: var(--logo-bg-light);
+
+  /* 表單元素專用顏色 */
+  --input-bg: #FFFFFF;
+  --input-border: #E8E8E8;
+  --input-text: #333333;
+  --input-placeholder: #999999;
+}
+
+[data-theme='dark'] {
+  --primary: var(--primary-dark);
+  --primary-gradient: var(--primary-gradient-dark);
+  --secondary: var(--secondary-dark);
+  --text-primary: var(--text-primary-dark);
+  --text-secondary: var(--text-secondary-dark);
+  --text-muted: #888888;
+  --background: #1E1E2E;
+  --card-bg: var(--card-bg-dark);
+  --hover: var(--hover-dark);
+  --border: var(--border-dark);
+  --primary-rgb: var(--primary-rgb-dark);
+  --table-header-bg: #1e1e3f;
+  --table-hover: #1e1e3f;
+  --logo-bg: var(--logo-bg-dark);
+
+  /* 表單元素專用顏色 */
+  --input-bg: #2A2D3A;
+  --input-border: #3A3D4A;
+  --input-text: #E8E8E8;
+  --input-placeholder: #888888;
+}
+
+/* 添加全局樣式 */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--secondary);
+  min-height: 100vh;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  line-height: 1.6;
+  color: var(--text-primary);
+  transition: all 0.3s ease;
+}
+
+#root {
+  min-height: 100vh;
+  background-color: var(--secondary);
+}
+
+/* 表單元素通用樣式 */
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+select,
+textarea {
+  background-color: var(--input-bg);
+  border: 1px solid var(--input-border);
+  color: var(--input-text);
+  border-radius: 0.5rem;
+  padding: 0.5rem;
+  font-size: 0.875rem;
+  transition: all 0.3s ease;
+}
+
+input[type="date"]:focus,
+input[type="datetime-local"]:focus,
+input[type="time"]:focus,
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+}
+
+input[type="date"]::placeholder,
+input[type="datetime-local"]::placeholder,
+input[type="time"]::placeholder,
+input[type="text"]::placeholder,
+input[type="email"]::placeholder,
+input[type="password"]::placeholder,
+input[type="search"]::placeholder,
+textarea::placeholder {
+  color: var(--input-placeholder);
+}
+
+/* 日期選擇器特殊樣式 */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  filter: var(--calendar-icon-filter);
+  cursor: pointer;
+}
+
+[data-theme="light"] {
+  --calendar-icon-filter: none;
+}
+
+[data-theme="dark"] {
+  --calendar-icon-filter: invert(1);
+}
+
+/* 選項樣式 */
+option {
+  background-color: var(--input-bg);
+  color: var(--input-text);
+}
+
+/* 滾動條樣式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}
+
+/* 只針對日期輸入框添加顏色修正 */
+input[type="date"], 
+input[type="datetime-local"] {
+  color-scheme: light dark;
+}
+
+[data-theme="dark"] input[type="date"], 
+[data-theme="dark"] input[type="datetime-local"] {
+  color-scheme: dark;
+}
+
+[data-theme="light"] input[type="date"], 
+[data-theme="light"] input[type="datetime-local"] {
+  color-scheme: light;
+}

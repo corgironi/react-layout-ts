@@ -1,0 +1,350 @@
+.container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.welcome {
+  margin-bottom: 2rem;
+  padding: 2rem;
+  background: var(--card-bg);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.welcome h1 {
+  margin: 0 0 1rem 0;
+  color: var(--text-primary);
+  font-size: 2rem;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.welcomeSubtitle {
+  font-size: 1.25rem;
+  color: var(--text-secondary);
+  font-weight: 400;
+}
+
+.userWelcome {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.userWelcome p {
+  margin: 0 0 0.5rem 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.loginType {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+/* 用戶資訊樣式 */
+.userInfo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1rem;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--secondary);
+  border-radius: 8px;
+}
+
+.infoItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.infoLabel {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.infoValue {
+  font-size: 1rem;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+/* 系統權限區域樣式 */
+.systemsSection {
+  margin-top: 2rem;
+}
+
+.sectionTitle {
+  margin: 0 0 1.5rem 0;
+  color: var(--text-primary);
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.systemsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.systemCard {
+  /* 使用 Card 組件的樣式，這裡只需要額外的自定義樣式 */
+}
+
+/* 卡片內部佈局樣式 */
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.systemIcon {
+  font-size: 2rem;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--logo-bg);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.systemInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.systemName {
+  margin: 0 0 0.25rem 0;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.systemCode {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-family: 'Courier New', monospace;
+  background: var(--secondary);
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  width: fit-content;
+}
+
+.roleCount {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  background: var(--secondary);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.cardFooter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.clickHint {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+.arrow {
+  color: var(--primary);
+  font-size: 1.25rem;
+  font-weight: bold;
+  transition: transform 0.2s ease;
+}
+
+.systemCard:hover .arrow {
+  transform: translateX(4px);
+}
+
+.systemHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.systemName {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.roleCount {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  background: var(--secondary);
+  padding: 0.25rem 0.75rem;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.rolesContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.roleTag {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: white;
+  border-radius: 20px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-transform: capitalize;
+  box-shadow: 0 2px 8px rgba(var(--primary-rgb), 0.3);
+  transition: all 0.2s ease;
+}
+
+.roleTag:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.4);
+}
+
+/* 針對不同系統使用不同顏色 */
+.systemCard:nth-child(2n) .roleTag {
+  background: linear-gradient(135deg, var(--success), var(--success-dark));
+  box-shadow: 0 2px 8px rgba(var(--success-rgb), 0.3);
+}
+
+.systemCard:nth-child(2n) .roleTag:hover {
+  box-shadow: 0 4px 12px rgba(var(--success-rgb), 0.4);
+}
+
+.systemCard:nth-child(3n) .roleTag {
+  background: linear-gradient(135deg, var(--info), var(--info-dark));
+  box-shadow: 0 2px 8px rgba(var(--info-rgb), 0.3);
+}
+
+.systemCard:nth-child(3n) .roleTag:hover {
+  box-shadow: 0 4px 12px rgba(var(--info-rgb), 0.4);
+}
+
+.systemCard:nth-child(4n) .roleTag {
+  background: linear-gradient(135deg, var(--warning), var(--warning-dark));
+  box-shadow: 0 2px 8px rgba(var(--warning-rgb), 0.3);
+}
+
+.systemCard:nth-child(4n) .roleTag:hover {
+  box-shadow: 0 4px 12px rgba(var(--warning-rgb), 0.4);
+}
+
+/* 載入狀態 */
+.loadingState {
+  margin-top: 2rem;
+  padding: 2rem;
+  background: var(--secondary);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.loadingState p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+/* 錯誤狀態 */
+.errorState {
+  margin-top: 2rem;
+  padding: 2rem;
+  background: var(--secondary);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.errorState p {
+  margin: 0 0 1rem 0;
+  color: var(--danger);
+  font-size: 1rem;
+}
+
+.retryButton {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.2s ease;
+}
+
+.retryButton:hover {
+  background: var(--primary-dark);
+}
+
+/* 無系統權限提示 */
+.noSystems {
+  margin-top: 2rem;
+  padding: 2rem;
+  background: var(--secondary);
+  border-radius: 12px;
+  text-align: center;
+}
+
+.noSystems p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .userInfo {
+    grid-template-columns: 1fr;
+  }
+  
+  .systemsGrid {
+    grid-template-columns: 1fr;
+  }
+  
+  .cardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    text-align: center;
+  }
+  
+  .systemIcon {
+    align-self: center;
+  }
+  
+  .roleCount {
+    align-self: center;
+  }
+  
+  .rolesContainer {
+    justify-content: center;
+  }
+  
+  .cardFooter {
+    flex-direction: column;
+    gap: 0.5rem;
+    text-align: center;
+  }
+} 

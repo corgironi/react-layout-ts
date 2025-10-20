@@ -1,0 +1,439 @@
+.container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  gap: 1.5rem;
+  background: var(--secondary);
+}
+
+/* 查詢條件區域 */
+.querySection {
+  background: var(--card-bg);
+  padding: 1.5rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 0 1rem rgba(0, 0, 0, 0.1);
+}
+
+.queryRow {
+  display: flex;
+  align-items: end;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.queryRow:last-child {
+  margin-bottom: 0;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.formGroup label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.select,
+.input {
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.25rem;
+  font-size: 0.875rem;
+  min-width: 120px;
+}
+
+.select:focus,
+.input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+}
+
+.radioGroup {
+  display: flex;
+  gap: 1rem;
+}
+
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.searchButton {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: background-color 0.3s;
+}
+
+.searchButton:hover:not(:disabled) {
+  background: var(--primary-dark);
+}
+
+.searchButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* 熱力圖區域 */
+.heatmapSection {
+  flex: 1;
+  background: var(--card-bg);
+  border-radius: 0.5rem;
+  box-shadow: 0 0 1rem rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* 顏色圖例 */
+.legend {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.legendColor {
+  width: 16px;
+  height: 16px;
+  border-radius: 2px;
+  border: 1px solid var(--border);
+}
+
+.checkinLegend {
+  background: var(--success);
+}
+
+.pendingLegend {
+  background: white;
+}
+
+.leaveLegend {
+  background: #fbbf24; /* 黃色 */
+}
+
+/* 熱力圖容器 */
+.heatmapWrapper {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
+
+.heatmapContainer {
+  min-width: fit-content;
+}
+
+/* 熱力圖表頭 */
+.heatmapHeader {
+  display: flex;
+  position: sticky;
+  top: 0;
+  background: var(--card-bg);
+  z-index: 1;
+  border-bottom: 2px solid var(--border);
+}
+
+.userNameHeader {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  padding: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-right: 1px solid var(--border);
+  background: var(--secondary);
+  box-sizing: border-box;
+}
+
+.datesHeader {
+  display: flex;
+  flex: 1;
+}
+
+.dateCell {
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
+  padding: 0.75rem 0;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+  box-sizing: border-box;
+}
+
+/* 熱力圖內容 */
+.heatmapContent {
+  display: flex;
+  flex-direction: column;
+}
+
+.userRow {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+}
+
+.userRow:hover {
+  background: var(--hover);
+}
+
+.userName {
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+  padding: 0.75rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  border-right: 1px solid var(--border);
+  background: var(--secondary);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  box-sizing: border-box;
+}
+
+.statusCells {
+  display: flex;
+  flex: 1;
+}
+
+.statusCell {
+  width: 60px;
+  min-width: 60px;
+  max-width: 60px;
+  height: 48px;
+  border-right: 1px solid var(--border);
+  cursor: pointer;
+  transition: opacity 0.2s;
+  box-sizing: border-box;
+}
+
+.statusCell:hover {
+  opacity: 0.8;
+}
+
+/* 可點擊格子樣式 */
+.clickableCell {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.clickableCell:hover {
+  opacity: 0.8;
+  transform: scale(1.05);
+  border: 2px solid var(--primary);
+}
+
+/* 狀態顏色 */
+.checkinCell {
+  background: var(--success);
+}
+
+.pendingCell {
+  background: white;
+}
+
+.leaveCell {
+  background: #fbbf24; /* 黃色 */
+}
+
+.emptyCell {
+  background: #f3f4f6; /* 淺灰色 */
+}
+
+/* 員工詳細資訊彈窗 */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 1rem;
+}
+
+.modalContent {
+  background: var(--card-bg);
+  border-radius: 0.75rem;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  max-width: 500px;
+  width: 100%;
+  max-height: 90vh;
+  overflow: hidden;
+  animation: modalSlideIn 0.3s ease-out;
+}
+
+@keyframes modalSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9) translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--secondary);
+}
+
+.modalHeader h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.closeButton {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  padding: 0.25rem;
+  line-height: 1;
+  border-radius: 0.25rem;
+  transition: all 0.2s ease;
+  width: 2rem;
+  height: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.closeButton:hover {
+  background: var(--hover);
+  color: var(--text-primary);
+}
+
+.modalBody {
+  padding: 1.5rem;
+}
+
+.infoRow {
+  display: flex;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+
+.infoRow:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 80px;
+  margin-right: 1rem;
+}
+
+.value {
+  color: var(--text-secondary);
+  flex: 1;
+  font-weight: 500;
+}
+
+/* 無資料狀態 */
+.noData {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  font-size: 1rem;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem;
+  }
+  
+  .queryRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .legend {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .userName {
+    width: 100px;
+    font-size: 0.875rem;
+  }
+  
+  .userNameHeader {
+    width: 100px;
+  }
+  
+  .statusCell {
+    width: 50px;
+    height: 40px;
+  }
+  
+  .dateCell {
+    width: 50px;
+  }
+
+  .modalContent {
+    margin: 1rem;
+    max-width: calc(100% - 2rem);
+  }
+
+  .modalHeader {
+    padding: 1rem;
+  }
+
+  .modalBody {
+    padding: 1rem;
+  }
+
+  .infoRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
+  }
+
+  .label {
+    min-width: auto;
+    margin-right: 0;
+  }
+} 

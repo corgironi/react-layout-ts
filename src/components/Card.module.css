@@ -1,0 +1,57 @@
+.card {
+  background-color: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+  border: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+
+.card.default {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.card.elevated {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+
+.card.outlined {
+  box-shadow: none;
+  border: 2px solid var(--border);
+}
+
+.card.clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.card.clickable:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(var(--primary-rgb), 0.15);
+  border-color: var(--primary);
+}
+
+.card.clickable:active {
+  transform: translateY(0);
+  transition: transform 0.1s ease;
+}
+
+.card.clickable:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb), 0.2);
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .card {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+}
+
+/* 暗色主題特殊效果 */
+[data-theme='dark'] .card.clickable:hover {
+  box-shadow: 0 12px 40px rgba(var(--primary-rgb), 0.25);
+  background-color: rgba(var(--primary-rgb), 0.05);
+} 
