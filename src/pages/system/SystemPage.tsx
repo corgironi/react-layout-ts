@@ -12,6 +12,9 @@ const SystemPage = () => {
       case 'createuser':
         navigate('/system/createuser');
         break;
+      case 'usermaintenance':
+        navigate('/system/usermaintenance');
+        break;
       // 可以在這裡添加更多tab
     }
   };
@@ -27,6 +30,13 @@ const SystemPage = () => {
           >
             <i className="fas fa-user-plus"></i>
             創建使用者
+          </button>
+          <button 
+            className={`${styles.tab} ${activeTab === 'usermaintenance' ? styles.active : ''}`}
+            onClick={() => handleTabChange('usermaintenance')}
+          >
+            <i className="fas fa-users-cog"></i>
+            用戶管理
           </button>
           {/* 預留其他tab位置 */}
         </div>

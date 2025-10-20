@@ -8,6 +8,7 @@ import Overtime from '../pages/attendance/Overtime';
 import Summary from '../pages/attendance/Summary';
 import SystemPage from '../pages/system/SystemPage';
 import CreateLocalUser from '../pages/system/CreateLocalUser';
+import UserMaintenance from '../pages/system/UserMaintenance';
 import LoginPage from '../pages/LoginPage';
 import NotFoundPage from '../pages/NotFoundPage';
 import ErrorPage from '../pages/ErrorPage';
@@ -52,6 +53,10 @@ export const router = createBrowserRouter([
           {
             path: 'createuser',
             element: <CreateLocalUser />
+          },
+          {
+            path: 'usermaintenance',
+            element: <UserMaintenance />
           }
         ]
       }
