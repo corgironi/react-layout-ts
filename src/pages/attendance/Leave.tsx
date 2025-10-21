@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import styles from './Leave.module.css';
 import Table from '../../components/Table';
 import Alert from '../../components/Alert';
+import DateTimePicker from '../../components/DateTimePicker';
 import { useLeaveStore, type LeaveRequest } from '../../store/leaveStore';
 
 const Leave = () => {
@@ -376,22 +377,22 @@ const Leave = () => {
               <div className={styles.formRow}>
                 <div className={styles.formGroup}>
                   <label>開始時間 *</label>
-                  <input
-                    type="datetime-local"
+                  <DateTimePicker
                     value={formData.startDateTime}
-                    onChange={(e) => setFormData(prev => ({ ...prev, startDateTime: e.target.value }))}
+                    onChange={(value) => setFormData(prev => ({ ...prev, startDateTime: value }))}
+                    minuteStep={5}
+                    placeholder="選擇開始時間"
                     className={styles.input}
-                    required
                   />
                 </div>
                 <div className={styles.formGroup}>
                   <label>結束時間 *</label>
-                  <input
-                    type="datetime-local"
+                  <DateTimePicker
                     value={formData.endDateTime}
-                    onChange={(e) => setFormData(prev => ({ ...prev, endDateTime: e.target.value }))}
+                    onChange={(value) => setFormData(prev => ({ ...prev, endDateTime: value }))}
+                    minuteStep={5}
+                    placeholder="選擇結束時間"
                     className={styles.input}
-                    required
                   />
                 </div>
               </div>
