@@ -29,71 +29,74 @@ export interface LeaveRequest {
 
 // 請假記錄狀態管理
 interface LeaveState {
-  leaves: Leave[];
-  loading: boolean;
+  leaveRecords: Leave[];
+  colleagues: Colleague[];
+  isLoading: boolean;
+  isLoadingColleagues: boolean;
+  isSubmitting: boolean;
   error: string | null;
-  fetchLeaves: () => Promise<void>;
-  createLeave: (leave: Omit<Leave, 'id'>) => Promise<void>;
-  updateLeave: (id: string, leave: Partial<Leave>) => Promise<void>;
-  deleteLeave: (id: string) => Promise<void>;
+  fetchLeaveRecords: (startDate: string, endDate: string) => Promise<void>;
+  fetchColleagues: () => Promise<void>;
+  submitLeave: (leaveData: any) => Promise<void>;
+  cancelLeave: (id: number) => Promise<void>;
 }
 
 // 請假記錄狀態管理
 export const useLeaveStore = create<LeaveState>((set) => ({
-  leaves: [],
-  loading: false,
+  leaveRecords: [],
+  colleagues: [],
+  isLoading: false,
+  isLoadingColleagues: false,
+  isSubmitting: false,
   error: null,
 
   // 獲取請假記錄
-  fetchLeaves: async () => {
-    set({ loading: true, error: null });
+  fetchLeaveRecords: async (startDate: string, endDate: string) => {
+    set({ isLoading: true, error: null });
     try {
-      const response = await leaveAPI.getLeaves();
-      set({ leaves: response, loading: false });
+      const response = await attendanceAPI.getLeaveRecords(startDate, endDate);
+      set({ leaveRecords: response || [], isLoading: false });
     } catch (error) {
-      set({ error: '獲取請假記錄失敗', loading: false });
+      console.error('獲取請假記錄失敗:', error);
+      set({ error: '獲取請假記錄失敗', isLoading: false });
     }
   },
 
-  // 創建請假記錄
-  createLeave: async (leave) => {
-    set({ loading: true, error: null });
+  // 獲取同事資料
+  fetchColleagues: async () => {
+    set({ isLoadingColleagues: true, error: null });
     try {
-      const response = await leaveAPI.createLeave(leave);
-      set((state) => ({
-        leaves: [...state.leaves, response],
-        loading: false
-      }));
+      const response = await getSameEmployers();
+      set({ colleagues: response || [], isLoadingColleagues: false });
     } catch (error) {
-      set({ error: '創建請假記錄失敗', loading: false });
+      console.error('獲取同事資料失敗:', error);
+      set({ error: '獲取同事資料失敗', isLoadingColleagues: false });
     }
   },
 
-  // 更新請假記錄
-  updateLeave: async (id, leave) => {
-    set({ loading: true, error: null });
+  // 提交請假申請
+  submitLeave: async (leaveData) => {
+    set({ isSubmitting: true, error: null });
     try {
-      const response = await leaveAPI.updateLeave(id, leave);
-      set((state) => ({
-        leaves: state.leaves.map((l) => (l.id === id ? response : l)),
-        loading: false
-      }));
+      await attendanceAPI.submitLeaveRequest(leaveData);
+      set({ isSubmitting: false });
     } catch (error) {
-      set({ error: '更新請假記錄失敗', loading: false });
+      console.error('提交請假申請失敗:', error);
+      set({ error: error instanceof Error ? error.message : '提交請假申請失敗', isSubmitting: false });
+      throw error;
     }
   },
 
-  // 刪除請假記錄
-  deleteLeave: async (id) => {
-    set({ loading: true, error: null });
+  // 取消請假
+  cancelLeave: async (id) => {
+    set({ isLoading: true, error: null });
     try {
-      await leaveAPI.deleteLeave(id);
-      set((state) => ({
-        leaves: state.leaves.filter((l) => l.id !== id),
-        loading: false
-      }));
+      await attendanceAPI.cancelLeave(id);
+      set({ isLoading: false });
     } catch (error) {
-      set({ error: '刪除請假記錄失敗', loading: false });
+      console.error('取消請假失敗:', error);
+      set({ error: error instanceof Error ? error.message : '取消請假失敗', isLoading: false });
+      throw error;
     }
   }
 })); 

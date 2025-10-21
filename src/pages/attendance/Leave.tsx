@@ -346,7 +346,7 @@ const Leave = () => {
                     <option value="">
                       {isLoadingColleagues ? '載入中...' : '請選擇員工'}
                     </option>
-                    {colleagues.map(colleague => (
+                    {colleagues && colleagues.map(colleague => (
                       <option key={colleague.useraccount} value={colleague.useraccount}>
                         {colleague.username}({colleague.useraccount})
                       </option>
@@ -364,7 +364,7 @@ const Leave = () => {
                     <option value="">
                       {isLoadingColleagues ? '載入中...' : '請選擇代理人（可選）'}
                     </option>
-                    {colleagues.map(colleague => (
+                    {colleagues && colleagues.map(colleague => (
                       <option key={colleague.useraccount} value={colleague.useraccount}>
                         {colleague.username}({colleague.useraccount})
                       </option>
