@@ -4,8 +4,9 @@ import styles from './Summary.module.css';
 // 假資料類型定義
 interface SiteCheckData {
   username: string;
+  site: string; // 站點位置
   date: string;
-  status: 'checkin' | 'pending' | 'leave';
+  status: 'checkin' | 'pending' | 'leave' | 'holiday';
   leaveType?: 'personal leave' | 'sick leave'; // 請假類型
   phone?: string; // 電話號碼
   department?: string; // 部門
@@ -36,13 +37,13 @@ const Summary = () => {
   // 生成假資料 (重新啟用用於測試)
   const generateMockData = (): SiteCheckData[] => {
     const users = [
-      { name: 'User001', phone: '0901-234-567', department: 'IT部門' },
-      { name: 'User002', phone: '0902-345-678', department: 'HR部門' },
-      { name: 'User003', phone: '0903-456-789', department: '財務部' },
-      { name: 'User004', phone: '0904-567-890', department: '營運部' },
-      { name: 'User005', phone: '0905-678-901', department: '行銷部' },
-      { name: 'User006', phone: '0906-789-012', department: '研發部' },
-      { name: 'User007', phone: '0907-890-123', department: '客服部' }
+      { name: 'User001', phone: '0901-234-567', department: 'IT部門', site: '新竹' },
+      { name: 'User002', phone: '0902-345-678', department: 'HR部門', site: '台中' },
+      { name: 'User003', phone: '0903-456-789', department: '財務部', site: '高雄' },
+      { name: 'User004', phone: '0904-567-890', department: '營運部', site: '新竹' },
+      { name: 'User005', phone: '0905-678-901', department: '行銷部', site: '台中' },
+      { name: 'User006', phone: '0906-789-012', department: '研發部', site: '高雄' },
+      { name: 'User007', phone: '0907-890-123', department: '客服部', site: '新竹' }
     ];
     
     // 生成 7/1 到 7/23 的日期
@@ -56,7 +57,7 @@ const Summary = () => {
     };
     
     const dates = generateDates();
-    const statuses: ('checkin' | 'pending' | 'leave')[] = ['checkin', 'pending', 'leave'];
+    const statuses: ('checkin' | 'pending' | 'leave' | 'holiday')[] = ['checkin', 'pending', 'leave', 'holiday'];
     const leaveTypes: ('personal leave' | 'sick leave')[] = ['personal leave', 'sick leave'];
     
     const mockData: SiteCheckData[] = [];
@@ -71,6 +72,7 @@ const Summary = () => {
         
         mockData.push({
           username: user.name,
+          site: user.site,
           date,
           status: randomStatus,
           leaveType,
@@ -310,6 +312,10 @@ const Summary = () => {
             <div className={`${styles.legendColor} ${styles.leaveLegend}`}></div>
             <span>請假 (personal/sick leave)</span>
           </div>
+          <div className={styles.legendItem}>
+            <div className={`${styles.legendColor} ${styles.holidayLegend}`}></div>
+            <span>休假日 (holiday)</span>
+          </div>
         </div>
 
         {/* 熱力圖容器 */}
@@ -317,6 +323,7 @@ const Summary = () => {
           <div className={styles.heatmapContainer}>
             {/* 熱力圖標題行 */}
             <div className={styles.heatmapHeader}>
+              <div className={styles.siteHeader}>站點</div>
               <div className={styles.userNameHeader}>使用者</div>
               <div className={styles.datesHeader}>
                 {Array.from({ length: 23 }, (_, i) => {
@@ -335,6 +342,9 @@ const Summary = () => {
               .filter((_, index) => index % 23 === 0) // 每個用戶只顯示一行
               .map((userData, userIndex) => (
                 <div key={userIndex} className={styles.heatmapRow}>
+                  <div className={styles.siteCell}>
+                    {userData.site}
+                  </div>
                   <div className={styles.userNameCell}>
                     {userData.username}
                   </div>
@@ -351,6 +361,8 @@ const Summary = () => {
                         ? styles.checkin 
                         : dayData.status === 'leave' 
                         ? styles.leave 
+                        : dayData.status === 'holiday'
+                        ? styles.holiday
                         : styles.pending;
                       
                       return (
@@ -364,6 +376,9 @@ const Summary = () => {
                             <span className={styles.leaveType}>
                               {dayData.leaveType === 'personal leave' ? 'P' : 'S'}
                             </span>
+                          )}
+                          {dayData.status === 'holiday' && (
+                            <span className={styles.holidayType}>H</span>
                           )}
                         </div>
                       );

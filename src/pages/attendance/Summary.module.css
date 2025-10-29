@@ -136,6 +136,10 @@
   background: #fbbf24; /* 黃色 */
 }
 
+.holidayLegend {
+  background: #2196F3; /* 藍色 */
+}
+
 /* 熱力圖容器 */
 .heatmapWrapper {
   flex: 1;
@@ -155,6 +159,18 @@
   background: var(--card-bg);
   z-index: 1;
   border-bottom: 2px solid var(--border);
+}
+
+.siteHeader {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  padding: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-right: 1px solid var(--border);
+  background: var(--secondary);
+  box-sizing: border-box;
 }
 
 .userNameHeader {
@@ -203,6 +219,23 @@
   background: var(--hover);
 }
 
+.siteCell {
+  width: 80px;
+  min-width: 80px;
+  max-width: 80px;
+  padding: 0.75rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  border-right: 1px solid var(--border);
+  background: var(--secondary);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  box-sizing: border-box;
+  font-size: 0.75rem;
+  text-align: center;
+}
+
 .userNameCell {
   width: 120px;
   min-width: 120px;
@@ -213,7 +246,7 @@
   border-right: 1px solid var(--border);
   background: var(--secondary);
   position: sticky;
-  left: 0;
+  left: 80px;
   z-index: 1;
   box-sizing: border-box;
 }
@@ -287,10 +320,24 @@
   background: #fbbf24; /* 黃色 */
 }
 
+.holiday {
+  background: #2196F3; /* 藍色 */
+}
+
 .leaveType {
   font-size: 0.75rem;
   font-weight: 600;
   color: #1f2937;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.holidayType {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -457,6 +504,15 @@
     gap: 0.5rem;
   }
   
+  .siteCell {
+    width: 60px;
+    font-size: 0.75rem;
+  }
+  
+  .siteHeader {
+    width: 60px;
+  }
+  
   .userName {
     width: 100px;
     font-size: 0.875rem;
@@ -464,6 +520,10 @@
   
   .userNameHeader {
     width: 100px;
+  }
+  
+  .userNameCell {
+    left: 60px;
   }
   
   .statusCell {
