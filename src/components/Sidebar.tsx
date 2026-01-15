@@ -40,6 +40,24 @@ const Sidebar = ({ collapsed, onCollapse }: SidebarProps) => {
             <span>出勤系統</span>
           </div>
           <div className={styles.navGroup}>
+            <div className={styles.navTitle}>維修管理</div>
+            <div 
+              className={`${styles.navItem} ${location.pathname.startsWith('/hardware-maintenance') ? styles.active : ''}`}
+              onClick={() => navigate('/hardware-maintenance')}
+            >
+              <i className="fas fa-file-alt"></i>
+              <span>報修單管理</span>
+            </div>
+            <div className={styles.navItem}>
+              <i className="fas fa-search"></i>
+              <span>維修單管理</span>
+            </div>
+            <div className={styles.navItem}>
+              <i className="fas fa-book-open"></i>
+              <span>價格手冊</span>
+            </div>
+          </div>
+          <div className={styles.navGroup}>
             <div className={styles.navTitle}>系統管理</div>
             <div className={styles.navItem}>
               <i className="fas fa-chart-bar"></i>

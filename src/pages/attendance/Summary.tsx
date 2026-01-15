@@ -372,14 +372,14 @@ const Summary = () => {
                           onClick={() => handleEmployeeClick(dayData)}
                           title={`${dayData.username} - ${dayData.date} - ${dayData.status}`}
                         >
-                          {dayData.status === 'leave' && dayData.leaveType && (
+                          {/* {dayData.status === 'leave' && dayData.leaveType && (
                             <span className={styles.leaveType}>
                               {dayData.leaveType === 'personal leave' ? 'P' : 'S'}
                             </span>
-                          )}
-                          {dayData.status === 'holiday' && (
+                          )} */}
+                          {/* {dayData.status === 'holiday' && (
                             <span className={styles.holidayType}>H</span>
-                          )}
+                          )} */}
                         </div>
                       );
                     })}
