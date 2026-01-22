@@ -12,48 +12,11 @@
   margin-bottom: 2rem;
 }
 
+/* KPI 卡片客製化樣式 - 基於 Card component */
 .kpiCard {
-  background: var(--card-bg);
-  border-radius: 12px;
-  padding: 1.5rem;
   display: flex;
   align-items: center;
   gap: 1rem;
-  border: 1px solid var(--border);
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.kpiCard:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-}
-
-.kpiIcon {
-  font-size: 2.5rem;
-  width: 60px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 12px;
-  flex-shrink: 0;
-}
-
-.kpiCardBlue .kpiIcon {
-  background: rgba(122, 184, 255, 0.1);
-}
-
-.kpiCardYellow .kpiIcon {
-  background: rgba(255, 193, 7, 0.1);
-}
-
-.kpiCardGreen .kpiIcon {
-  background: rgba(76, 175, 80, 0.1);
-}
-
-.kpiCardPurple .kpiIcon {
-  background: rgba(98, 89, 202, 0.1);
 }
 
 .kpiContent {

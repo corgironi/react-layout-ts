@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import styles from './HardwareMaintenance.module.css';
+import WarningBanner, { WarningBannerItem } from '../../components/WarningBanner';
+import Card from '../../components/Card';
 
 interface RepairOrder {
   reportNumber: string;
@@ -17,6 +19,50 @@ interface RepairOrder {
 const HWMAHome = () => {
   const [filter, setFilter] = useState('全部');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // 假資料 - 警告橫幅項目
+  const warningItems: WarningBannerItem[] = [
+    {
+      id: 'hwma-warning-001',
+      systemName: 'hardware-maintenance',
+      warningLevel: 'warning',
+      warningTitle: '設備維修提醒',
+      warningMessage: '目前有 3 件設備等待維修，請盡快處理',
+      warningData: {
+        '等待數量': 3,
+        '優先級': '高',
+        '影響地點': '台中、新竹'
+      },
+      warningCreator: ['維修系統'],
+      createdAt: new Date().toISOString()
+    },
+    {
+      id: 'hwma-info-001',
+      systemName: 'hardware-maintenance',
+      warningLevel: 'info',
+      warningTitle: '維修進度通知',
+      warningMessage: '本週已完成 12 件維修案件，效率提升 15%',
+      warningData: {
+        '完成數量': 12,
+        '效率提升': '15%',
+        '平均處理時間': '2.4 天'
+      },
+      warningCreator: ['系統管理員'],
+      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
+    }
+  ];
+
+  // 處理警告項目點擊
+  const handleWarningClick = (item: WarningBannerItem) => {
+    console.log('警告項目被點擊:', item);
+    // 這裡可以添加導航到相關頁面或顯示詳細信息的邏輯
+  };
+
+  // 處理警告項目關閉
+  const handleWarningDismiss = (itemId: string) => {
+    console.log('關閉警告項目:', itemId);
+    // 這裡可以添加從狀態中移除項目的邏輯
+  };
 
   // 假資料 - KPI 數據
   const kpiData = [
@@ -126,11 +172,29 @@ const HWMAHome = () => {
 
   return (
     <div className={styles.container}>
+      {/* 警告橫幅 - 使用 medium 尺寸 */}
+      <WarningBanner
+        items={warningItems}
+        size="medium"
+        onItemClick={handleWarningClick}
+        onDismiss={handleWarningDismiss}
+      />
+
       {/* KPI 卡片區域 */}
       <div className={styles.kpiSection}>
         {kpiData.map((kpi, index) => (
-          <div key={index} className={`${styles.kpiCard} ${styles[`kpiCard${kpi.color.charAt(0).toUpperCase() + kpi.color.slice(1)}`]}`}>
-            <div className={styles.kpiIcon}>{kpi.icon}</div>
+          <Card
+            key={index}
+            variant="default"
+            size="medium"
+            borderColor={kpi.color as 'blue' | 'yellow' | 'green' | 'purple'}
+            icon={kpi.icon}
+            iconPosition="left"
+            iconSize="medium"
+            isClickable={true}
+            onClick={() => console.log(`點擊了 ${kpi.title}`)}
+            className={styles.kpiCard}
+          >
             <div className={styles.kpiContent}>
               <div className={styles.kpiTitle}>{kpi.title}</div>
               <div className={styles.kpiValue}>{kpi.value}</div>
@@ -138,7 +202,7 @@ const HWMAHome = () => {
                 {kpi.change}
               </div>
             </div>
-          </div>
+          </Card>
         ))}
       </div>
 

@@ -2,10 +2,6 @@
   /* 添加 RGB 值用於透明度計算 */
   --primary-rgb-light: 122, 184, 255;  /* #7AB8FF 的 RGB 值 */
   --primary-rgb-dark: 11, 47, 74;    /* #0B2F4A 的 RGB 值 */
-  --danger-rgb: 255, 99, 71;           /* #FF6347 的 RGB 值 */
-  --success-rgb: 76, 175, 80;          /* #4CAF50 的 RGB 值 */
-  --warning-rgb: 255, 193, 7;          /* #FFC107 的 RGB 值 */
-  --info-rgb: 33, 150, 243;            /* #2196F3 的 RGB 值 */
 
   /* Light Theme Colors */
   --primary-light: #6259ca;
@@ -53,16 +49,18 @@
   --sidebar-width: 240px;
   --sidebar-mini-width: 70px;
   --content-padding: 1.5rem;
+  
+  /* 狀態顏色定義 */
   --success: #28a745;
   --info: #17a2b8;
   --warning: #ffc107;
   --danger: #dc3545;
 
-  /* 狀態顏色的 RGB 值 */
-  --success-rgb: 40, 167, 69;
-  --warning-rgb: 255, 193, 7;
-  --danger-rgb: 220, 53, 69;
-  --info-rgb: 23, 162, 184;
+  /* 狀態顏色的 RGB 值（對應上面的顏色值） */
+  --success-rgb: 40, 167, 69;    /* 對應 #28a745 */
+  --info-rgb: 23, 162, 184;      /* 對應 #17a2b8 */
+  --warning-rgb: 255, 193, 7;    /* 對應 #ffc107 */
+  --danger-rgb: 220, 53, 69;     /* 對應 #dc3545 */
 }
 
 [data-theme='light'] {

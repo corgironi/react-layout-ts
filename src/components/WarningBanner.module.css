@@ -26,6 +26,117 @@
   border-radius: 1rem;
 }
 
+/* 尺寸變體 - Large (預設，用於首頁) */
+.size-large .bannerTitle {
+  font-size: 1.25rem;
+}
+
+.size-large .warningCard {
+  padding: 1rem;
+}
+
+.size-large .cardTitle {
+  font-size: 1rem;
+}
+
+.size-large .warningMessage {
+  font-size: 0.875rem;
+}
+
+.size-large .levelIcon {
+  font-size: 1.25rem;
+}
+
+/* 尺寸變體 - Medium (用於子頁面如 HWMAHome) */
+.size-medium .bannerTitle {
+  font-size: 1.125rem;
+}
+
+.size-medium .warningCard {
+  padding: 0.875rem;
+}
+
+.size-medium .cardTitle {
+  font-size: 0.9375rem;
+}
+
+.size-medium .warningMessage {
+  font-size: 0.8125rem;
+}
+
+.size-medium .levelIcon {
+  font-size: 1.125rem;
+}
+
+.size-medium .bannerGrid {
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 0.875rem;
+}
+
+.size-medium .bannerHeader {
+  margin-bottom: 0.875rem;
+}
+
+.size-medium .itemCount {
+  font-size: 0.8125rem;
+  padding: 0.2rem 0.625rem;
+}
+
+.size-medium .timestamp {
+  font-size: 0.6875rem;
+}
+
+.size-medium .systemName {
+  font-size: 0.6875rem;
+}
+
+/* 尺寸變體 - Small (用於緊湊空間) */
+.size-small .bannerTitle {
+  font-size: 1rem;
+}
+
+.size-small .warningCard {
+  padding: 0.75rem;
+}
+
+.size-small .cardTitle {
+  font-size: 0.875rem;
+}
+
+.size-small .warningMessage {
+  font-size: 0.75rem;
+}
+
+.size-small .levelIcon {
+  font-size: 1rem;
+}
+
+.size-small .bannerGrid {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 0.75rem;
+}
+
+.size-small .bannerHeader {
+  margin-bottom: 0.75rem;
+}
+
+.size-small .itemCount {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+}
+
+.size-small .timestamp {
+  font-size: 0.6875rem;
+}
+
+.size-small .systemName {
+  font-size: 0.6875rem;
+}
+
+.size-small .creatorTag {
+  font-size: 0.5625rem;
+}
+
 /* 警告卡片網格 */
 .bannerGrid {
   display: grid;
@@ -49,26 +160,65 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-/* 警告級別樣式 */
+/* 警告級別樣式 - 對應 global.css 的 info, warning, danger, success */
 .level-info {
   border-left: 4px solid var(--info);
   background: linear-gradient(135deg, 
-    rgba(var(--info-rgb), 0.05) 0%, 
-    rgba(var(--info-rgb), 0.02) 100%);
+    rgba(var(--info-rgb), 0.08) 0%, 
+    rgba(var(--info-rgb), 0.03) 100%);
+}
+
+.level-info .levelIcon {
+  color: var(--info);
+}
+
+.level-info .cardTitle {
+  color: var(--info);
 }
 
 .level-warning {
   border-left: 4px solid var(--warning);
   background: linear-gradient(135deg, 
-    rgba(var(--warning-rgb), 0.05) 0%, 
-    rgba(var(--warning-rgb), 0.02) 100%);
+    rgba(var(--warning-rgb), 0.08) 0%, 
+    rgba(var(--warning-rgb), 0.03) 100%);
+}
+
+.level-warning .levelIcon {
+  color: var(--warning);
+}
+
+.level-warning .cardTitle {
+  color: var(--warning);
 }
 
 .level-critical {
   border-left: 4px solid var(--danger);
   background: linear-gradient(135deg, 
-    rgba(var(--danger-rgb), 0.05) 0%, 
-    rgba(var(--danger-rgb), 0.02) 100%);
+    rgba(var(--danger-rgb), 0.08) 0%, 
+    rgba(var(--danger-rgb), 0.03) 100%);
+}
+
+.level-critical .levelIcon {
+  color: var(--danger);
+}
+
+.level-critical .cardTitle {
+  color: var(--danger);
+}
+
+.level-success {
+  border-left: 4px solid var(--success);
+  background: linear-gradient(135deg, 
+    rgba(var(--success-rgb), 0.08) 0%, 
+    rgba(var(--success-rgb), 0.03) 100%);
+}
+
+.level-success .levelIcon {
+  color: var(--success);
+}
+
+.level-success .cardTitle {
+  color: var(--success);
 }
 
 /* 卡片頭部 */
@@ -83,6 +233,7 @@
   font-size: 1.25rem;
   flex-shrink: 0;
   margin-top: 0.125rem;
+  transition: color 0.3s ease;
 }
 
 .cardInfo {
@@ -93,9 +244,9 @@
 .cardTitle {
   font-size: 1rem;
   font-weight: 600;
-  color: var(--text-primary);
   margin: 0 0 0.25rem 0;
   line-height: 1.4;
+  transition: color 0.3s ease;
 }
 
 .systemName {
@@ -237,20 +388,30 @@
 /* 暗色主題特殊調整 */
 [data-theme='dark'] .level-info {
   background: linear-gradient(135deg, 
-    rgba(var(--info-rgb), 0.1) 0%, 
-    rgba(var(--info-rgb), 0.05) 100%);
+    rgba(var(--info-rgb), 0.15) 0%, 
+    rgba(var(--info-rgb), 0.08) 100%);
+  border-left-color: var(--info);
 }
 
 [data-theme='dark'] .level-warning {
   background: linear-gradient(135deg, 
-    rgba(var(--warning-rgb), 0.1) 0%, 
-    rgba(var(--warning-rgb), 0.05) 100%);
+    rgba(var(--warning-rgb), 0.15) 0%, 
+    rgba(var(--warning-rgb), 0.08) 100%);
+  border-left-color: var(--warning);
 }
 
 [data-theme='dark'] .level-critical {
   background: linear-gradient(135deg, 
-    rgba(var(--danger-rgb), 0.1) 0%, 
-    rgba(var(--danger-rgb), 0.05) 100%);
+    rgba(var(--danger-rgb), 0.15) 0%, 
+    rgba(var(--danger-rgb), 0.08) 100%);
+  border-left-color: var(--danger);
+}
+
+[data-theme='dark'] .level-success {
+  background: linear-gradient(135deg, 
+    rgba(var(--success-rgb), 0.15) 0%, 
+    rgba(var(--success-rgb), 0.08) 100%);
+  border-left-color: var(--success);
 }
 
 [data-theme='dark'] .warningCard:hover {
