@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import styles from './HardwareMaintenance.module.css';
 import WarningBanner, { WarningBannerItem } from '../../components/WarningBanner';
 import Card from '../../components/Card';
@@ -16,9 +16,35 @@ interface RepairOrder {
   repairDate: string;
 }
 
+interface RepairFormData {
+  reportNumber: string;
+  repairPerson: string;
+  employeeId: string;
+  location: string;
+  equipmentName: string;
+  problemDescription: string;
+  borrowedEquipment: string;
+  photos: File[];
+}
+
 const HWMAHome = () => {
   const [filter, setFilter] = useState('全部');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [formData, setFormData] = useState<RepairFormData>({
+    reportNumber: '',
+    repairPerson: '',
+    employeeId: '',
+    location: '台中',
+    equipmentName: '',
+    problemDescription: '',
+    borrowedEquipment: '',
+    photos: []
+  });
+  const [formErrors, setFormErrors] = useState<Partial<Record<keyof RepairFormData, string>>>({});
+  const [isLoadingInfo, setIsLoadingInfo] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const uploadAreaRef = useRef<HTMLDivElement>(null);
 
   // 假資料 - 警告橫幅項目
   const warningItems: WarningBannerItem[] = [
@@ -170,6 +196,211 @@ const HWMAHome = () => {
     }
   };
 
+  // 處理表單輸入變更
+  const handleInputChange = (field: keyof RepairFormData, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    // 清除該欄位的錯誤訊息
+    if (formErrors[field]) {
+      setFormErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[field];
+        return newErrors;
+      });
+    }
+  };
+
+  // 處理員工工號輸入（限制為6位數字）
+  const handleEmployeeIdChange = (value: string) => {
+    const numericValue = value.replace(/\D/g, '').slice(0, 6);
+    handleInputChange('employeeId', numericValue);
+  };
+
+  // 處理載入資訊
+  const handleLoadInfo = async () => {
+    if (!formData.reportNumber.trim()) {
+      setFormErrors(prev => ({ ...prev, reportNumber: '請輸入報案單號' }));
+      return;
+    }
+
+    setIsLoadingInfo(true);
+    try {
+      // 模擬 API 調用
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // 模擬從其他系統載入的資料
+      // 這裡可以根據報案單號從 API 獲取資料
+      console.log('載入報案單號資訊:', formData.reportNumber);
+      
+      // 模擬載入的資料（實際應該從 API 獲取）
+      // setFormData(prev => ({
+      //   ...prev,
+      //   equipmentName: '從系統載入的設備名稱',
+      //   // 其他欄位...
+      // }));
+      
+      alert('資訊載入成功（模擬）');
+    } catch (error) {
+      console.error('載入資訊失敗:', error);
+      alert('載入資訊失敗，請檢查報案單號是否正確');
+    } finally {
+      setIsLoadingInfo(false);
+    }
+  };
+
+  // 處理文件選擇
+  const handleFileSelect = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    const imageFiles = Array.from(files).filter(file => 
+      file.type.startsWith('image/')
+    );
+
+    if (imageFiles.length !== files.length) {
+      alert('請只上傳圖片檔案');
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      photos: [...prev.photos, ...imageFiles]
+    }));
+  };
+
+  // 處理文件拖曳
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (uploadAreaRef.current) {
+      uploadAreaRef.current.classList.add(styles.dragOver);
+    }
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (uploadAreaRef.current) {
+      uploadAreaRef.current.classList.remove(styles.dragOver);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (uploadAreaRef.current) {
+      uploadAreaRef.current.classList.remove(styles.dragOver);
+    }
+    handleFileSelect(e.dataTransfer.files);
+  };
+
+  // 移除照片
+  const handleRemovePhoto = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      photos: prev.photos.filter((_, i) => i !== index)
+    }));
+  };
+
+  // 表單驗證
+  const validateForm = (): boolean => {
+    const errors: Partial<Record<keyof RepairFormData, string>> = {};
+
+    if (!formData.reportNumber.trim()) {
+      errors.reportNumber = '請輸入報案單號';
+    }
+
+    if (!formData.repairPerson.trim()) {
+      errors.repairPerson = '請輸入報修人姓名';
+    }
+
+    if (!formData.employeeId.trim()) {
+      errors.employeeId = '請輸入員工工號';
+    } else if (formData.employeeId.length !== 6) {
+      errors.employeeId = '員工工號必須為6位數字';
+    }
+
+    if (!formData.location) {
+      errors.location = '請選擇地點';
+    }
+
+    if (!formData.equipmentName.trim()) {
+      errors.equipmentName = '請輸入電腦設備名稱';
+    }
+
+    if (!formData.problemDescription.trim()) {
+      errors.problemDescription = '請詳細描述電腦問題';
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // 處理表單提交
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      return;
+    }
+
+    // 這裡可以調用 API 提交表單
+    console.log('提交表單資料:', {
+      ...formData,
+      photos: formData.photos.map(f => f.name)
+    });
+
+    // 模擬提交成功
+    alert('報修單新增成功！');
+    
+    // 重置表單並關閉 Modal
+    setFormData({
+      reportNumber: '',
+      repairPerson: '',
+      employeeId: '',
+      location: '台中',
+      equipmentName: '',
+      problemDescription: '',
+      borrowedEquipment: '',
+      photos: []
+    });
+    setFormErrors({});
+    setIsModalOpen(false);
+  };
+
+  // 處理取消
+  const handleCancel = () => {
+    setFormData({
+      reportNumber: '',
+      repairPerson: '',
+      employeeId: '',
+      location: '台中',
+      equipmentName: '',
+      problemDescription: '',
+      borrowedEquipment: '',
+      photos: []
+    });
+    setFormErrors({});
+    setIsModalOpen(false);
+  };
+
+  // 按 ESC 鍵關閉 Modal
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && isModalOpen) {
+        handleCancel();
+      }
+    };
+
+    if (isModalOpen) {
+      document.addEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'hidden';
+    }
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape);
+      document.body.style.overflow = 'unset';
+    };
+  }, [isModalOpen]);
+
   return (
     <div className={styles.container}>
       {/* 警告橫幅 - 使用 medium 尺寸 */}
@@ -233,7 +464,10 @@ const HWMAHome = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <button className={styles.addButton}>
+            <button 
+              className={styles.addButton}
+              onClick={() => setIsModalOpen(true)}
+            >
               <i className="fas fa-plus"></i>
               <span>新增報修</span>
             </button>
@@ -292,6 +526,226 @@ const HWMAHome = () => {
           </table>
         </div>
       </div>
+
+      {/* 新增報修單 Modal */}
+      {isModalOpen && (
+        <div 
+          className={styles.modalOverlay}
+          onClick={handleCancel}
+        >
+          <div 
+            className={styles.modal}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.modalHeader}>
+              <h3>新增報修單</h3>
+              <button 
+                className={styles.closeButton}
+                onClick={handleCancel}
+                aria-label="關閉"
+              >
+                ×
+              </button>
+            </div>
+
+            <form className={styles.modalForm} onSubmit={handleSubmit}>
+              {/* 報案單號 */}
+              <div className={styles.formGroup}>
+                <label htmlFor="reportNumber">報案單號</label>
+                <div className={styles.inputWithButton}>
+                  <input
+                    type="text"
+                    id="reportNumber"
+                    placeholder="例如: Case-2024-001"
+                    value={formData.reportNumber}
+                    onChange={(e) => handleInputChange('reportNumber', e.target.value)}
+                    className={formErrors.reportNumber ? styles.inputError : ''}
+                  />
+                  <button
+                    type="button"
+                    className={styles.loadInfoButton}
+                    onClick={handleLoadInfo}
+                    disabled={isLoadingInfo}
+                  >
+                    <i className="fas fa-download"></i>
+                    <span>{isLoadingInfo ? '載入中...' : '載入資訊'}</span>
+                  </button>
+                </div>
+                {formErrors.reportNumber && (
+                  <span className={styles.errorText}>{formErrors.reportNumber}</span>
+                )}
+                <p className={styles.helpText}>
+                  輸入報案單號後點擊「載入資訊」從其他系統匯入電腦資訊
+                </p>
+              </div>
+
+              {/* 報修人 */}
+              <div className={styles.formGroup}>
+                <label htmlFor="repairPerson">報修人</label>
+                <input
+                  type="text"
+                  id="repairPerson"
+                  placeholder="請輸入報修人姓名"
+                  value={formData.repairPerson}
+                  onChange={(e) => handleInputChange('repairPerson', e.target.value)}
+                  className={formErrors.repairPerson ? styles.inputError : ''}
+                />
+                {formErrors.repairPerson && (
+                  <span className={styles.errorText}>{formErrors.repairPerson}</span>
+                )}
+              </div>
+
+              {/* 員工工號 */}
+              <div className={styles.formGroup}>
+                <label htmlFor="employeeId">員工工號</label>
+                <input
+                  type="text"
+                  id="employeeId"
+                  placeholder="6位數工號"
+                  value={formData.employeeId}
+                  onChange={(e) => handleEmployeeIdChange(e.target.value)}
+                  maxLength={6}
+                  className={formErrors.employeeId ? styles.inputError : ''}
+                />
+                {formErrors.employeeId && (
+                  <span className={styles.errorText}>{formErrors.employeeId}</span>
+                )}
+              </div>
+
+              {/* 地點 */}
+              <div className={styles.formGroup}>
+                <label htmlFor="location">地點</label>
+                <select
+                  id="location"
+                  value={formData.location}
+                  onChange={(e) => handleInputChange('location', e.target.value)}
+                  className={formErrors.location ? styles.inputError : ''}
+                >
+                  <option value="台中">台中</option>
+                  <option value="新竹">新竹</option>
+                  <option value="高雄">高雄</option>
+                  <option value="台北">台北</option>
+                </select>
+                {formErrors.location && (
+                  <span className={styles.errorText}>{formErrors.location}</span>
+                )}
+              </div>
+
+              {/* 電腦設備名稱 */}
+              <div className={styles.formGroup}>
+                <label htmlFor="equipmentName">電腦設備名稱</label>
+                <input
+                  type="text"
+                  id="equipmentName"
+                  placeholder="例如: Dell Latitude 5420"
+                  value={formData.equipmentName}
+                  onChange={(e) => handleInputChange('equipmentName', e.target.value)}
+                  className={formErrors.equipmentName ? styles.inputError : ''}
+                />
+                {formErrors.equipmentName && (
+                  <span className={styles.errorText}>{formErrors.equipmentName}</span>
+                )}
+              </div>
+
+              {/* 問題描述 */}
+              <div className={styles.formGroup}>
+                <label htmlFor="problemDescription">問題描述</label>
+                <textarea
+                  id="problemDescription"
+                  placeholder="請詳細描述電腦問題"
+                  value={formData.problemDescription}
+                  onChange={(e) => handleInputChange('problemDescription', e.target.value)}
+                  rows={4}
+                  className={formErrors.problemDescription ? styles.inputError : ''}
+                />
+                {formErrors.problemDescription && (
+                  <span className={styles.errorText}>{formErrors.problemDescription}</span>
+                )}
+              </div>
+
+              {/* 借用設備資訊 */}
+              <div className={styles.formGroup}>
+                <label htmlFor="borrowedEquipment">借用設備資訊</label>
+                <input
+                  type="text"
+                  id="borrowedEquipment"
+                  placeholder="例如: HP123"
+                  value={formData.borrowedEquipment}
+                  onChange={(e) => handleInputChange('borrowedEquipment', e.target.value)}
+                />
+              </div>
+
+              {/* 上傳照片 */}
+              <div className={styles.formGroup}>
+                <label>上傳照片</label>
+                <div
+                  ref={uploadAreaRef}
+                  className={styles.uploadArea}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    onChange={(e) => handleFileSelect(e.target.files)}
+                    style={{ display: 'none' }}
+                  />
+                  <div className={styles.uploadContent}>
+                    <i className="fas fa-cloud-upload-alt"></i>
+                    <p>點擊或拖曳檔案到此處上傳</p>
+                    <span className={styles.uploadHint}>支援 JPG、PNG、GIF 格式</span>
+                  </div>
+                </div>
+
+                {/* 已上傳的照片預覽 */}
+                {formData.photos.length > 0 && (
+                  <div className={styles.photoPreview}>
+                    {formData.photos.map((photo, index) => (
+                      <div key={index} className={styles.photoItem}>
+                        <img 
+                          src={URL.createObjectURL(photo)} 
+                          alt={`預覽 ${index + 1}`}
+                          className={styles.photoThumbnail}
+                        />
+                        <button
+                          type="button"
+                          className={styles.removePhotoButton}
+                          onClick={() => handleRemovePhoto(index)}
+                          aria-label="移除照片"
+                        >
+                          ×
+                        </button>
+                        <span className={styles.photoName}>{photo.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 表單操作按鈕 */}
+              <div className={styles.modalActions}>
+                <button
+                  type="button"
+                  className={styles.cancelButton}
+                  onClick={handleCancel}
+                >
+                  取消
+                </button>
+                <button
+                  type="submit"
+                  className={styles.submitButton}
+                >
+                  確認
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
