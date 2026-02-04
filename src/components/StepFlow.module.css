@@ -1,0 +1,235 @@
+.stepFlow {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 1.5rem 0;
+}
+
+.stepItem {
+  display: flex;
+  gap: 1.5rem;
+  position: relative;
+  padding-bottom: 2rem;
+}
+
+.stepItem:last-child {
+  padding-bottom: 0;
+}
+
+/* 步驟左側圖標區域 */
+.stepLeft {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+/* 步驟圖標 */
+.stepIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 1rem;
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.stepIconCompleted {
+  background: var(--success);
+  color: white;
+}
+
+.stepIconActive {
+  background: var(--primary);
+  color: white;
+}
+
+.stepIconPending {
+  background: var(--border);
+  color: var(--text-secondary);
+}
+
+.stepIconError {
+  background: var(--danger);
+  color: white;
+}
+
+/* 連接線 */
+.stepConnector {
+  width: 2px;
+  flex: 1;
+  min-height: 2rem;
+  background: var(--border);
+  margin-top: 0.5rem;
+}
+
+.connectorCompleted {
+  background: var(--success);
+}
+
+/* 步驟內容區域 */
+.stepContent {
+  flex: 1;
+  padding-top: 0.25rem;
+}
+
+.stepHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.75rem;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.stepTitleWrapper {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.stepTitle {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* 狀態標籤 */
+.statusBadge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.statusBadgeActive {
+  background: rgba(var(--primary-rgb), 0.1);
+  color: var(--primary);
+}
+
+.statusBadgeCompleted {
+  background: rgba(var(--success-rgb), 0.1);
+  color: var(--success);
+}
+
+.statusBadgeError {
+  background: rgba(var(--danger-rgb), 0.1);
+  color: var(--danger);
+}
+
+/* 步驟描述 */
+.stepComment {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  margin-bottom: 0.75rem;
+}
+
+/* 步驟元數據（時間、負責人） */
+.stepMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+.stepTimestamp {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.stepResponsible {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+/* 操作按鈕區域 */
+.stepActions {
+  margin-top: 1rem;
+}
+
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.actionButtonPrimary {
+  background: var(--primary-gradient);
+  color: white;
+}
+
+.actionButtonPrimary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb), 0.3);
+}
+
+.actionButtonWarning {
+  background: var(--warning);
+  color: white;
+}
+
+.actionButtonWarning:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--warning-rgb), 0.3);
+}
+
+.actionButtonDanger {
+  background: var(--danger);
+  color: white;
+}
+
+.actionButtonDanger:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(var(--danger-rgb), 0.3);
+}
+
+.actionButton i {
+  font-size: 0.875rem;
+}
+
+/* 響應式設計 */
+@media (max-width: 768px) {
+  .stepItem {
+    gap: 1rem;
+  }
+
+  .stepIcon {
+    width: 32px;
+    height: 32px;
+    font-size: 0.875rem;
+  }
+
+  .stepTitle {
+    font-size: 0.875rem;
+  }
+
+  .stepComment {
+    font-size: 0.8125rem;
+  }
+
+  .actionButton {
+    width: 100%;
+    justify-content: center;
+  }
+}
