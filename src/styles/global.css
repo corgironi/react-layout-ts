@@ -84,6 +84,9 @@
   --input-border: #E8E8E8;
   --input-text: #333333;
   --input-placeholder: #999999;
+  --pagination-bg: #ffffff;
+  --pagination-border: #dbe2ea;
+  --pagination-text: #3a4453;
 }
 
 [data-theme='dark'] {
@@ -107,6 +110,9 @@
   --input-border: #3A3D4A;
   --input-text: #E8E8E8;
   --input-placeholder: #888888;
+  --pagination-bg: #252841;
+  --pagination-border: #3d4360;
+  --pagination-text: #e1e6f8;
 }
 
 /* 添加全局樣式 */

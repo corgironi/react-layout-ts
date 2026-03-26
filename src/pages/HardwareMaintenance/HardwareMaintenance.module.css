@@ -61,6 +61,25 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
+.pageState,
+.errorState {
+  margin-bottom: 1rem;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.pageState {
+  background: rgba(var(--info-rgb), 0.12);
+  color: var(--info);
+}
+
+.errorState {
+  background: rgba(var(--danger-rgb), 0.12);
+  color: var(--danger);
+}
+
 .sectionHeader {
   display: flex;
   justify-content: space-between;
@@ -209,6 +228,12 @@
   white-space: nowrap;
 }
 
+.emptyCell {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 1.5rem 0.75rem;
+}
+
 /* 子單數量徽章 */
 .subOrderBadge {
   display: inline-flex;
@@ -274,6 +299,10 @@
 
 .actionButton i {
   font-size: 0.75rem;
+}
+
+.paginationWrapper {
+  margin-top: 1rem;
 }
 
 /* Modal 樣式 */

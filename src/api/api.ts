@@ -611,4 +611,54 @@ export const userAPI = {
   }
 };
 
+export interface HWMADashboardKPI {
+  title: string;
+  value: string | number;
+  change?: string;
+  changeType?: 'positive' | 'negative';
+  icon?: string;
+  color?: 'blue' | 'yellow' | 'green' | 'purple';
+}
+
+export interface HWMADashboardRepairOrder {
+  reportNumber: string;
+  repairPerson: string;
+  employeeId: string;
+  location: string;
+  equipmentName: string;
+  problemDescription: string;
+  borrowedEquipment: string;
+  subOrderQuantity: number;
+  status: 'repairing' | 'waiting' | 'completed';
+  repairDate: string;
+}
+
+export interface HWMADashboardHomeResponse {
+  warningItems?: any[];
+  kpiData?: HWMADashboardKPI[];
+  repairOrders?: HWMADashboardRepairOrder[];
+}
+
+// 硬體維護首頁相關 API
+export const hardwareMaintenanceAPI = {
+  getHomeData: async (params?: { site?: string; date?: string }) => {
+    try {
+      console.log('發送請求到 /HWMA/case，參數:', params);
+      const response = await api.get('/HWMA/case', { params });
+      console.log('獲取硬體維護首頁資料 API 響應:', response);
+      return response.data as HWMADashboardHomeResponse;
+    } catch (error) {
+      console.error('獲取硬體維護首頁資料失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+          headers: error.response?.headers
+        });
+      }
+      throw error;
+    }
+  }
+};
+
 export default api; 

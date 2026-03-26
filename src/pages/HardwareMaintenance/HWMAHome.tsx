@@ -1,7 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import styles from './HardwareMaintenance.module.css';
 import WarningBanner, { WarningBannerItem } from '../../components/WarningBanner';
 import Card from '../../components/Card';
+import Pagination from '../../components/Pagination';
+import {
+  hardwareMaintenanceAPI,
+  HWMADashboardHomeResponse,
+  HWMADashboardKPI,
+  HWMADashboardRepairOrder
+} from '../../api/api';
 
 interface RepairOrder {
   reportNumber: string;
@@ -28,9 +35,16 @@ interface RepairFormData {
 }
 
 const HWMAHome = () => {
+  const ITEMS_PER_PAGE = 8;
   const [filter, setFilter] = useState('全部');
   const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isPageLoading, setIsPageLoading] = useState(false);
+  const [pageError, setPageError] = useState('');
+  const [warningItems, setWarningItems] = useState<WarningBannerItem[]>([]);
+  const [kpiData, setKpiData] = useState<HWMADashboardKPI[]>([]);
+  const [repairOrders, setRepairOrders] = useState<RepairOrder[]>([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [formData, setFormData] = useState<RepairFormData>({
     reportNumber: '',
     repairPerson: '',
@@ -46,38 +60,6 @@ const HWMAHome = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const uploadAreaRef = useRef<HTMLDivElement>(null);
 
-  // 假資料 - 警告橫幅項目
-  const warningItems: WarningBannerItem[] = [
-    {
-      id: 'hwma-warning-001',
-      systemName: 'hardware-maintenance',
-      warningLevel: 'warning',
-      warningTitle: '設備維修提醒',
-      warningMessage: '目前有 3 件設備等待維修，請盡快處理',
-      warningData: {
-        '等待數量': 3,
-        '優先級': '高',
-        '影響地點': '台中、新竹'
-      },
-      warningCreator: ['維修系統'],
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: 'hwma-info-001',
-      systemName: 'hardware-maintenance',
-      warningLevel: 'info',
-      warningTitle: '維修進度通知',
-      warningMessage: '本週已完成 12 件維修案件，效率提升 15%',
-      warningData: {
-        '完成數量': 12,
-        '效率提升': '15%',
-        '平均處理時間': '2.4 天'
-      },
-      warningCreator: ['系統管理員'],
-      createdAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
-    }
-  ];
-
   // 處理警告項目點擊
   const handleWarningClick = (item: WarningBannerItem) => {
     console.log('警告項目被點擊:', item);
@@ -90,84 +72,92 @@ const HWMAHome = () => {
     // 這裡可以添加從狀態中移除項目的邏輯
   };
 
-  // 假資料 - KPI 數據
-  const kpiData = [
-    {
-      title: '維修中案件',
-      value: '24',
-      change: '+12%',
-      changeType: 'positive' as const,
-      icon: '🔧',
-      color: 'blue'
-    },
-    {
-      title: '設備等待',
-      value: '18',
-      change: '+8%',
-      changeType: 'positive' as const,
-      icon: '⏰',
-      color: 'yellow'
-    },
-    {
-      title: '已完成',
-      value: '156',
-      change: '+23%',
-      changeType: 'positive' as const,
-      icon: '✅',
-      color: 'green'
-    },
-    {
-      title: '平均處理時間',
-      value: '2.4天',
-      change: '-15%',
-      changeType: 'negative' as const,
-      icon: '⏱️',
-      color: 'purple'
-    }
+  const normalizeWarningItem = (item: any, index: number): WarningBannerItem => ({
+    id: item?.id ?? `hwma-warning-${index}`,
+    systemName: item?.systemName ?? 'hardware-maintenance',
+    warningLevel: item?.warningLevel ?? 'info',
+    warningTitle: item?.warningTitle ?? '系統通知',
+    warningMessage: item?.warningMessage ?? '',
+    warningData: item?.warningData ?? {},
+    warningCreator: Array.isArray(item?.warningCreator) ? item.warningCreator : ['系統'],
+    createdAt: item?.createdAt ?? new Date().toISOString()
+  });
+
+  const normalizeRepairOrder = (order: HWMADashboardRepairOrder): RepairOrder => ({
+    reportNumber: order.reportNumber ?? '',
+    repairPerson: order.repairPerson ?? '',
+    employeeId: order.employeeId ?? '',
+    location: order.location ?? '',
+    equipmentName: order.equipmentName ?? '',
+    problemDescription: order.problemDescription ?? '',
+    borrowedEquipment: order.borrowedEquipment ?? '',
+    subOrderQuantity: Number(order.subOrderQuantity ?? 0),
+    status: order.status ?? 'waiting',
+    repairDate: order.repairDate ?? ''
+  });
+
+  const getDefaultKpiData = (): HWMADashboardKPI[] => [
+    { title: '維修中案件', value: 0, change: '-', changeType: 'positive', icon: '🔧', color: 'blue' },
+    { title: '設備等待', value: 0, change: '-', changeType: 'positive', icon: '⏰', color: 'yellow' },
+    { title: '已完成', value: 0, change: '-', changeType: 'positive', icon: '✅', color: 'green' },
+    { title: '平均處理時間', value: '-', change: '-', changeType: 'negative', icon: '⏱️', color: 'purple' }
   ];
 
-  // 假資料 - 報修單列表
-  const repairOrders: RepairOrder[] = [
-    {
-      reportNumber: 'Case-2024-001',
-      repairPerson: '張三',
-      employeeId: '123456',
-      location: '台中',
-      equipmentName: 'Dell Latitude 5420',
-      problemDescription: '電腦無法開機,疑似主機板故障',
-      borrowedEquipment: 'HP123',
-      subOrderQuantity: 2,
-      status: 'repairing',
-      repairDate: '2024-10-20'
-    },
-    {
-      reportNumber: 'Case-2024-002',
-      repairPerson: '李四',
-      employeeId: '234567',
-      location: '新竹',
-      equipmentName: 'HP EliteBook 840',
-      problemDescription: '螢幕顯示異常,有閃爍現象',
-      borrowedEquipment: 'HP124',
-      subOrderQuantity: 1,
-      status: 'waiting',
-      repairDate: '2024-10-19'
-    },
-    {
-      reportNumber: 'Case-2024-003',
-      repairPerson: '王五',
-      employeeId: '345678',
-      location: '高雄',
-      equipmentName: 'Lenovo ThinkPad X1',
-      problemDescription: '鍵盤按鍵失靈',
-      borrowedEquipment: 'HP125',
-      subOrderQuantity: 3,
-      status: 'repairing',
-      repairDate: '2024-10-18'
+  const buildKpiFromOrders = (orders: RepairOrder[]): HWMADashboardKPI[] => {
+    const repairing = orders.filter((order) => order.status === 'repairing').length;
+    const waiting = orders.filter((order) => order.status === 'waiting').length;
+    const completed = orders.filter((order) => order.status === 'completed').length;
+
+    return [
+      { title: '維修中案件', value: repairing, change: '-', changeType: 'positive', icon: '🔧', color: 'blue' },
+      { title: '設備等待', value: waiting, change: '-', changeType: 'positive', icon: '⏰', color: 'yellow' },
+      { title: '已完成', value: completed, change: '-', changeType: 'positive', icon: '✅', color: 'green' },
+      { title: '平均處理時間', value: '-', change: '-', changeType: 'negative', icon: '⏱️', color: 'purple' }
+    ];
+  };
+
+  const fetchHomeData = async () => {
+    setIsPageLoading(true);
+    setPageError('');
+    try {
+      const response: HWMADashboardHomeResponse = await hardwareMaintenanceAPI.getHomeData();
+      const warningsSource = Array.isArray((response as any).warningItems)
+        ? (response as any).warningItems
+        : Array.isArray((response as any).warnings)
+          ? (response as any).warnings
+          : [];
+
+      const ordersSource = Array.isArray((response as any).repairOrders)
+        ? (response as any).repairOrders
+        : Array.isArray((response as any).data)
+          ? (response as any).data
+          : [];
+
+      const normalizedOrders = (ordersSource as HWMADashboardRepairOrder[]).map(normalizeRepairOrder);
+      const kpiSource = Array.isArray((response as any).kpiData) ? (response as any).kpiData : [];
+
+      setWarningItems(warningsSource.map(normalizeWarningItem));
+      setRepairOrders(normalizedOrders);
+      setKpiData(
+        kpiSource.length > 0
+          ? kpiSource
+          : normalizedOrders.length > 0
+            ? buildKpiFromOrders(normalizedOrders)
+            : getDefaultKpiData()
+      );
+    } catch (error) {
+      console.error('載入 HWMA 首頁資料失敗:', error);
+      setPageError('載入首頁資料失敗，請稍後再試');
+      setWarningItems([]);
+      setKpiData(getDefaultKpiData());
+      setRepairOrders([]);
+    } finally {
+      setIsPageLoading(false);
     }
-  ];
+  };
 
   // 過濾報修單
-  const filteredOrders = repairOrders.filter(order => {
+  const filteredOrders = useMemo(() => repairOrders.filter(order => {
     if (filter !== '全部' && order.status !== filter) {
       return false;
     }
@@ -180,7 +170,13 @@ const HWMAHome = () => {
       );
     }
     return true;
-  });
+  }), [repairOrders, filter, searchQuery]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ITEMS_PER_PAGE));
+  const paginatedOrders = useMemo(() => {
+    const start = (currentPage - 1) * ITEMS_PER_PAGE;
+    return filteredOrders.slice(start, start + ITEMS_PER_PAGE);
+  }, [filteredOrders, currentPage]);
 
   // 獲取狀態標籤文字和樣式
   const getStatusInfo = (status: string) => {
@@ -401,6 +397,20 @@ const HWMAHome = () => {
     };
   }, [isModalOpen]);
 
+  useEffect(() => {
+    fetchHomeData();
+  }, []);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filter]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
+
   return (
     <div className={styles.container}>
       {/* 警告橫幅 - 使用 medium 尺寸 */}
@@ -428,9 +438,9 @@ const HWMAHome = () => {
           >
             <div className={styles.kpiContent}>
               <div className={styles.kpiTitle}>{kpi.title}</div>
-              <div className={styles.kpiValue}>{kpi.value}</div>
+              <div className={styles.kpiValue}>{String(kpi.value)}</div>
               <div className={`${styles.kpiChange} ${kpi.changeType === 'positive' ? styles.positive : styles.negative}`}>
-                {kpi.change}
+                {kpi.change ?? '-'}
               </div>
             </div>
           </Card>
@@ -473,6 +483,8 @@ const HWMAHome = () => {
             </button>
           </div>
         </div>
+        {isPageLoading && <div className={styles.pageState}>載入中...</div>}
+        {!isPageLoading && pageError && <div className={styles.errorState}>{pageError}</div>}
 
         {/* 報修單表格 */}
         <div className={styles.tableWrapper}>
@@ -493,7 +505,7 @@ const HWMAHome = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredOrders.map((order, index) => {
+              {paginatedOrders.map((order, index) => {
                 const statusInfo = getStatusInfo(order.status);
                 return (
                   <tr key={index}>
@@ -522,8 +534,22 @@ const HWMAHome = () => {
                   </tr>
                 );
               })}
+              {!isPageLoading && !pageError && paginatedOrders.length === 0 && (
+                <tr>
+                  <td colSpan={11} className={styles.emptyCell}>
+                    目前沒有資料
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
+        </div>
+        <div className={styles.paginationWrapper}>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
         </div>
       </div>
 
