@@ -662,8 +662,54 @@ export interface HWMACaseListParams {
   page_size?: number;
 }
 
+export type HWMACaseServiceType = 'PC' | 'Parts' | 'Monitor';
+export type HWMACaseDeviceType = 'SNB' | 'SPC';
+
+/** POST /HWMA/case 請求 body（勿送 hrt_id、case_created_at 等由後端產生之欄位） */
+export interface HWMACaseCreateBody {
+  service_type: HWMACaseServiceType;
+  device_type: HWMACaseDeviceType;
+  issued_no?: string;
+  issued_site?: string;
+  issued_site_phase?: string;
+  reporter_employee_id?: string;
+  reporter_nt_account?: string;
+  reporter_phone?: string;
+  reporter_organization_code?: string;
+  issue_description?: string;
+  device_name?: string;
+  device_brand?: string;
+  device_model?: string;
+  device_sn?: string;
+  device_owner?: string;
+  borrow_device_name?: string;
+  created_by_nt_account?: string;
+}
+
 // 硬體維護 API
 export const hardwareMaintenanceAPI = {
+  /** POST /HWMA/case — 新建報修案例（201 回傳完整 CaseItem） */
+  createCase: async (body: HWMACaseCreateBody) => {
+    try {
+      const response = await api.post<HWMACaseItem>('/HWMA/case', body, {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Time-Zone': HWMA_X_TIME_ZONE,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('建立 HWMA 報修案例失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
   /** GET /HWMA/case — 報修案例列表（含 X-Time-Zone header） */
   getCaseList: async (params: HWMACaseListParams) => {
     try {

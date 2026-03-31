@@ -1,14 +1,18 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import styles from './HardwareMaintenance.module.css';
 import WarningBanner, { WarningBannerItem } from '../../components/WarningBanner';
 import Card from '../../components/Card';
 import Pagination from '../../components/Pagination';
+import Alert from '../../components/Alert';
 import {
   hardwareMaintenanceAPI,
   HWMADashboardKPI,
+  HWMACaseCreateBody,
+  HWMACaseDeviceType,
   HWMACaseItem,
   HWMACaseListParams,
+  HWMACaseServiceType,
 } from '../../api/api';
 
 type IssuedStatusToken = 'null' | 'Progress' | 'Closed';
@@ -25,16 +29,76 @@ type AppliedCaseFilters = {
 /** 後端單次請求筆數，用於搜尋時分段拉齊再於前端篩選 */
 const HWMA_CASE_LIST_FETCH_CHUNK = 300;
 
-interface RepairFormData {
-  reportNumber: string;
-  repairPerson: string;
-  employeeId: string;
-  location: string;
-  equipmentName: string;
-  problemDescription: string;
-  borrowedEquipment: string;
-  photos: File[];
-}
+type HwmaCreateFormState = {
+  service_type: '' | HWMACaseServiceType;
+  device_type: '' | HWMACaseDeviceType;
+  issued_no: string;
+  issued_site: string;
+  issued_site_phase: string;
+  reporter_employee_id: string;
+  reporter_nt_account: string;
+  reporter_phone: string;
+  reporter_organization_code: string;
+  issue_description: string;
+  device_name: string;
+  device_brand: string;
+  device_model: string;
+  device_sn: string;
+  device_owner: string;
+  borrow_device_name: string;
+  created_by_nt_account: string;
+};
+
+const getEmptyCreateForm = (): HwmaCreateFormState => ({
+  service_type: '',
+  device_type: '',
+  issued_no: '',
+  issued_site: '',
+  issued_site_phase: '',
+  reporter_employee_id: '',
+  reporter_nt_account: '',
+  reporter_phone: '',
+  reporter_organization_code: '',
+  issue_description: '',
+  device_name: '',
+  device_brand: '',
+  device_model: '',
+  device_sn: '',
+  device_owner: '',
+  borrow_device_name: '',
+  created_by_nt_account: '',
+});
+
+const OPTIONAL_CREATE_STRING_KEYS: (keyof HwmaCreateFormState)[] = [
+  'issued_no',
+  'issued_site',
+  'issued_site_phase',
+  'reporter_employee_id',
+  'reporter_nt_account',
+  'reporter_phone',
+  'reporter_organization_code',
+  'issue_description',
+  'device_name',
+  'device_brand',
+  'device_model',
+  'device_sn',
+  'device_owner',
+  'borrow_device_name',
+  'created_by_nt_account',
+];
+
+const buildHwmCreateBody = (form: HwmaCreateFormState): HWMACaseCreateBody => {
+  const body: HWMACaseCreateBody = {
+    service_type: form.service_type as HWMACaseServiceType,
+    device_type: form.device_type as HWMACaseDeviceType,
+  };
+  const assign = body as unknown as Record<string, string>;
+  for (const key of OPTIONAL_CREATE_STRING_KEYS) {
+    const v = form[key].trim();
+    if (v) assign[key] = v;
+  }
+  return body;
+};
 
 const getDefaultKpiData = (): HWMADashboardKPI[] => [
   { title: '維修中案件', value: 0, change: '-', changeType: 'positive', icon: '🔧', color: 'blue' },
@@ -152,20 +216,21 @@ const HWMAHome = () => {
   const [draftStartDate, setDraftStartDate] = useState('');
   const [draftEndDate, setDraftEndDate] = useState('');
   const [draftPageSize, setDraftPageSize] = useState(10);
-  const [formData, setFormData] = useState<RepairFormData>({
-    reportNumber: '',
-    repairPerson: '',
-    employeeId: '',
-    location: '台中',
-    equipmentName: '',
-    problemDescription: '',
-    borrowedEquipment: '',
-    photos: []
-  });
-  const [formErrors, setFormErrors] = useState<Partial<Record<keyof RepairFormData, string>>>({});
-  const [isLoadingInfo, setIsLoadingInfo] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const uploadAreaRef = useRef<HTMLDivElement>(null);
+  const [createForm, setCreateForm] = useState<HwmaCreateFormState>(() => getEmptyCreateForm());
+  const [createFormErrors, setCreateFormErrors] = useState<Partial<Record<keyof HwmaCreateFormState, string>>>(
+    {},
+  );
+  const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [resultAlert, setResultAlert] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    type: 'success' | 'error';
+  }>({ isOpen: false, title: '', message: '', type: 'success' });
+
+  const closeResultAlert = useCallback(() => {
+    setResultAlert((prev) => ({ ...prev, isOpen: false }));
+  }, []);
 
   // 處理警告項目點擊
   const handleWarningClick = (item: WarningBannerItem) => {
@@ -289,189 +354,67 @@ const HWMAHome = () => {
     }
   };
 
-  // 處理表單輸入變更
-  const handleInputChange = (field: keyof RepairFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    // 清除該欄位的錯誤訊息
-    if (formErrors[field]) {
-      setFormErrors(prev => {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
+  const handleCreateFieldChange = (field: keyof HwmaCreateFormState, value: string) => {
+    setCreateForm((prev) => ({ ...prev, [field]: value }));
+    if (createFormErrors[field]) {
+      setCreateFormErrors((prev) => {
+        const next = { ...prev };
+        delete next[field];
+        return next;
       });
     }
   };
 
-  // 處理員工工號輸入（限制為6位數字）
-  const handleEmployeeIdChange = (value: string) => {
-    const numericValue = value.replace(/\D/g, '').slice(0, 6);
-    handleInputChange('employeeId', numericValue);
-  };
-
-  // 處理載入資訊
-  const handleLoadInfo = async () => {
-    if (!formData.reportNumber.trim()) {
-      setFormErrors(prev => ({ ...prev, reportNumber: '請輸入報案單號' }));
-      return;
+  const validateCreateForm = (): boolean => {
+    const errors: Partial<Record<keyof HwmaCreateFormState, string>> = {};
+    if (!createForm.service_type) {
+      errors.service_type = '請選擇 service_type（PC / Parts / Monitor）';
     }
-
-    setIsLoadingInfo(true);
-    try {
-      // 模擬 API 調用
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // 模擬從其他系統載入的資料
-      // 這裡可以根據報案單號從 API 獲取資料
-      console.log('載入報案單號資訊:', formData.reportNumber);
-      
-      // 模擬載入的資料（實際應該從 API 獲取）
-      // setFormData(prev => ({
-      //   ...prev,
-      //   equipmentName: '從系統載入的設備名稱',
-      //   // 其他欄位...
-      // }));
-      
-      alert('資訊載入成功（模擬）');
-    } catch (error) {
-      console.error('載入資訊失敗:', error);
-      alert('載入資訊失敗，請檢查報案單號是否正確');
-    } finally {
-      setIsLoadingInfo(false);
+    if (!createForm.device_type) {
+      errors.device_type = '請選擇 device_type（SNB / SPC）';
     }
-  };
-
-  // 處理文件選擇
-  const handleFileSelect = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-
-    const imageFiles = Array.from(files).filter(file => 
-      file.type.startsWith('image/')
-    );
-
-    if (imageFiles.length !== files.length) {
-      alert('請只上傳圖片檔案');
-      return;
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      photos: [...prev.photos, ...imageFiles]
-    }));
-  };
-
-  // 處理文件拖曳
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (uploadAreaRef.current) {
-      uploadAreaRef.current.classList.add(styles.dragOver);
-    }
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (uploadAreaRef.current) {
-      uploadAreaRef.current.classList.remove(styles.dragOver);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (uploadAreaRef.current) {
-      uploadAreaRef.current.classList.remove(styles.dragOver);
-    }
-    handleFileSelect(e.dataTransfer.files);
-  };
-
-  // 移除照片
-  const handleRemovePhoto = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      photos: prev.photos.filter((_, i) => i !== index)
-    }));
-  };
-
-  // 表單驗證
-  const validateForm = (): boolean => {
-    const errors: Partial<Record<keyof RepairFormData, string>> = {};
-
-    if (!formData.reportNumber.trim()) {
-      errors.reportNumber = '請輸入報案單號';
-    }
-
-    if (!formData.repairPerson.trim()) {
-      errors.repairPerson = '請輸入報修人姓名';
-    }
-
-    if (!formData.employeeId.trim()) {
-      errors.employeeId = '請輸入員工工號';
-    } else if (formData.employeeId.length !== 6) {
-      errors.employeeId = '員工工號必須為6位數字';
-    }
-
-    if (!formData.location) {
-      errors.location = '請選擇地點';
-    }
-
-    if (!formData.equipmentName.trim()) {
-      errors.equipmentName = '請輸入電腦設備名稱';
-    }
-
-    if (!formData.problemDescription.trim()) {
-      errors.problemDescription = '請詳細描述電腦問題';
-    }
-
-    setFormErrors(errors);
+    setCreateFormErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
-  // 處理表單提交
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
+    if (!validateCreateForm()) return;
+
+    setCreateSubmitting(true);
+    try {
+      const body = buildHwmCreateBody(createForm);
+      const created = await hardwareMaintenanceAPI.createCase(body);
+      if (appliedFilters) {
+        setRawCaseItems((prev) => [created, ...prev]);
+        setCurrentPage(1);
+      }
+      setCreateForm(getEmptyCreateForm());
+      setCreateFormErrors({});
+      setIsModalOpen(false);
+      const no = displayCaseCell(created.issued_no);
+      const hid = displayCaseCell(created.hrt_id);
+      setResultAlert({
+        isOpen: true,
+        type: 'success',
+        title: '建立成功',
+        message: `HWMA 報修案例已建立。issued_no：${no}，hrt_id：${hid}。`,
+      });
+    } catch (error) {
+      setResultAlert({
+        isOpen: true,
+        type: 'error',
+        title: '建立失敗',
+        message: parseListAxiosError(error),
+      });
+    } finally {
+      setCreateSubmitting(false);
     }
-
-    // 這裡可以調用 API 提交表單
-    console.log('提交表單資料:', {
-      ...formData,
-      photos: formData.photos.map(f => f.name)
-    });
-
-    // 模擬提交成功
-    alert('報修單新增成功！');
-    
-    // 重置表單並關閉 Modal
-    setFormData({
-      reportNumber: '',
-      repairPerson: '',
-      employeeId: '',
-      location: '台中',
-      equipmentName: '',
-      problemDescription: '',
-      borrowedEquipment: '',
-      photos: []
-    });
-    setFormErrors({});
-    setIsModalOpen(false);
   };
 
-  // 處理取消
   const handleCancel = () => {
-    setFormData({
-      reportNumber: '',
-      repairPerson: '',
-      employeeId: '',
-      location: '台中',
-      equipmentName: '',
-      problemDescription: '',
-      borrowedEquipment: '',
-      photos: []
-    });
-    setFormErrors({});
+    setCreateForm(getEmptyCreateForm());
+    setCreateFormErrors({});
     setIsModalOpen(false);
   };
 
@@ -753,8 +696,9 @@ const HWMAHome = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className={styles.modalHeader}>
-              <h3>新增報修單</h3>
-              <button 
+              <h3>新增 HWMA 報修案例</h3>
+              <button
+                type="button"
                 className={styles.closeButton}
                 onClick={handleCancel}
                 aria-label="關閉"
@@ -764,203 +708,215 @@ const HWMAHome = () => {
             </div>
 
             <form className={styles.modalForm} onSubmit={handleSubmit}>
-              {/* 報案單號 */}
-              <div className={styles.formGroup}>
-                <label htmlFor="reportNumber">報案單號</label>
-                <div className={styles.inputWithButton}>
-                  <input
-                    type="text"
-                    id="reportNumber"
-                    placeholder="例如: Case-2024-001"
-                    value={formData.reportNumber}
-                    onChange={(e) => handleInputChange('reportNumber', e.target.value)}
-                    className={formErrors.reportNumber ? styles.inputError : ''}
-                  />
-                  <button
-                    type="button"
-                    className={styles.loadInfoButton}
-                    onClick={handleLoadInfo}
-                    disabled={isLoadingInfo}
-                  >
-                    <i className="fas fa-download"></i>
-                    <span>{isLoadingInfo ? '載入中...' : '載入資訊'}</span>
-                  </button>
-                </div>
-                {formErrors.reportNumber && (
-                  <span className={styles.errorText}>{formErrors.reportNumber}</span>
-                )}
-                <p className={styles.helpText}>
-                  輸入報案單號後點擊「載入資訊」從其他系統匯入電腦資訊
-                </p>
-              </div>
+              <p className={styles.helpText}>
+                必填：service_type、device_type。其餘欄位可留空（不送出）；勿填 hrt_id 與時間，由後端產生。
+              </p>
 
-              {/* 報修人 */}
               <div className={styles.formGroup}>
-                <label htmlFor="repairPerson">報修人</label>
-                <input
-                  type="text"
-                  id="repairPerson"
-                  placeholder="請輸入報修人姓名"
-                  value={formData.repairPerson}
-                  onChange={(e) => handleInputChange('repairPerson', e.target.value)}
-                  className={formErrors.repairPerson ? styles.inputError : ''}
-                />
-                {formErrors.repairPerson && (
-                  <span className={styles.errorText}>{formErrors.repairPerson}</span>
-                )}
-              </div>
-
-              {/* 員工工號 */}
-              <div className={styles.formGroup}>
-                <label htmlFor="employeeId">員工工號</label>
-                <input
-                  type="text"
-                  id="employeeId"
-                  placeholder="6位數工號"
-                  value={formData.employeeId}
-                  onChange={(e) => handleEmployeeIdChange(e.target.value)}
-                  maxLength={6}
-                  className={formErrors.employeeId ? styles.inputError : ''}
-                />
-                {formErrors.employeeId && (
-                  <span className={styles.errorText}>{formErrors.employeeId}</span>
-                )}
-              </div>
-
-              {/* 地點 */}
-              <div className={styles.formGroup}>
-                <label htmlFor="location">地點</label>
+                <label htmlFor="hwma-service_type">service_type（必填）</label>
                 <select
-                  id="location"
-                  value={formData.location}
-                  onChange={(e) => handleInputChange('location', e.target.value)}
-                  className={formErrors.location ? styles.inputError : ''}
+                  id="hwma-service_type"
+                  value={createForm.service_type}
+                  onChange={(e) =>
+                    handleCreateFieldChange('service_type', e.target.value as HwmaCreateFormState['service_type'])
+                  }
+                  className={createFormErrors.service_type ? styles.inputError : ''}
                 >
-                  <option value="台中">台中</option>
-                  <option value="新竹">新竹</option>
-                  <option value="高雄">高雄</option>
-                  <option value="台北">台北</option>
+                  <option value="">請選擇</option>
+                  <option value="PC">PC</option>
+                  <option value="Parts">Parts</option>
+                  <option value="Monitor">Monitor</option>
                 </select>
-                {formErrors.location && (
-                  <span className={styles.errorText}>{formErrors.location}</span>
+                {createFormErrors.service_type && (
+                  <span className={styles.errorText}>{createFormErrors.service_type}</span>
                 )}
               </div>
 
-              {/* 電腦設備名稱 */}
               <div className={styles.formGroup}>
-                <label htmlFor="equipmentName">電腦設備名稱</label>
+                <label htmlFor="hwma-device_type">device_type（必填）</label>
+                <select
+                  id="hwma-device_type"
+                  value={createForm.device_type}
+                  onChange={(e) =>
+                    handleCreateFieldChange('device_type', e.target.value as HwmaCreateFormState['device_type'])
+                  }
+                  className={createFormErrors.device_type ? styles.inputError : ''}
+                >
+                  <option value="">請選擇</option>
+                  <option value="SNB">SNB</option>
+                  <option value="SPC">SPC</option>
+                </select>
+                {createFormErrors.device_type && (
+                  <span className={styles.errorText}>{createFormErrors.device_type}</span>
+                )}
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-issued_no">issued_no</label>
                 <input
+                  id="hwma-issued_no"
                   type="text"
-                  id="equipmentName"
-                  placeholder="例如: Dell Latitude 5420"
-                  value={formData.equipmentName}
-                  onChange={(e) => handleInputChange('equipmentName', e.target.value)}
-                  className={formErrors.equipmentName ? styles.inputError : ''}
+                  value={createForm.issued_no}
+                  onChange={(e) => handleCreateFieldChange('issued_no', e.target.value)}
+                  placeholder="選填"
                 />
-                {formErrors.equipmentName && (
-                  <span className={styles.errorText}>{formErrors.equipmentName}</span>
-                )}
+              </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-issued_site">issued_site</label>
+                <input
+                  id="hwma-issued_site"
+                  type="text"
+                  value={createForm.issued_site}
+                  onChange={(e) => handleCreateFieldChange('issued_site', e.target.value)}
+                  placeholder="例：H-site"
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-issued_site_phase">issued_site_phase</label>
+                <input
+                  id="hwma-issued_site_phase"
+                  type="text"
+                  value={createForm.issued_site_phase}
+                  onChange={(e) => handleCreateFieldChange('issued_site_phase', e.target.value)}
+                  placeholder="例：F2"
+                />
               </div>
 
-              {/* 問題描述 */}
               <div className={styles.formGroup}>
-                <label htmlFor="problemDescription">問題描述</label>
+                <label htmlFor="hwma-reporter_employee_id">reporter_employee_id</label>
+                <input
+                  id="hwma-reporter_employee_id"
+                  type="text"
+                  value={createForm.reporter_employee_id}
+                  onChange={(e) => handleCreateFieldChange('reporter_employee_id', e.target.value)}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-reporter_nt_account">reporter_nt_account</label>
+                <input
+                  id="hwma-reporter_nt_account"
+                  type="text"
+                  value={createForm.reporter_nt_account}
+                  onChange={(e) => handleCreateFieldChange('reporter_nt_account', e.target.value)}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-reporter_phone">reporter_phone</label>
+                <input
+                  id="hwma-reporter_phone"
+                  type="text"
+                  value={createForm.reporter_phone}
+                  onChange={(e) => handleCreateFieldChange('reporter_phone', e.target.value)}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-reporter_organization_code">reporter_organization_code</label>
+                <input
+                  id="hwma-reporter_organization_code"
+                  type="text"
+                  value={createForm.reporter_organization_code}
+                  onChange={(e) => handleCreateFieldChange('reporter_organization_code', e.target.value)}
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-issue_description">issue_description</label>
                 <textarea
-                  id="problemDescription"
-                  placeholder="請詳細描述電腦問題"
-                  value={formData.problemDescription}
-                  onChange={(e) => handleInputChange('problemDescription', e.target.value)}
-                  rows={4}
-                  className={formErrors.problemDescription ? styles.inputError : ''}
+                  id="hwma-issue_description"
+                  rows={3}
+                  value={createForm.issue_description}
+                  onChange={(e) => handleCreateFieldChange('issue_description', e.target.value)}
                 />
-                {formErrors.problemDescription && (
-                  <span className={styles.errorText}>{formErrors.problemDescription}</span>
-                )}
               </div>
 
-              {/* 借用設備資訊 */}
               <div className={styles.formGroup}>
-                <label htmlFor="borrowedEquipment">借用設備資訊</label>
+                <label htmlFor="hwma-device_name">device_name</label>
                 <input
+                  id="hwma-device_name"
                   type="text"
-                  id="borrowedEquipment"
-                  placeholder="例如: HP123"
-                  value={formData.borrowedEquipment}
-                  onChange={(e) => handleInputChange('borrowedEquipment', e.target.value)}
+                  value={createForm.device_name}
+                  onChange={(e) => handleCreateFieldChange('device_name', e.target.value)}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-device_brand">device_brand</label>
+                <input
+                  id="hwma-device_brand"
+                  type="text"
+                  value={createForm.device_brand}
+                  onChange={(e) => handleCreateFieldChange('device_brand', e.target.value)}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-device_model">device_model</label>
+                <input
+                  id="hwma-device_model"
+                  type="text"
+                  value={createForm.device_model}
+                  onChange={(e) => handleCreateFieldChange('device_model', e.target.value)}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-device_sn">device_sn</label>
+                <input
+                  id="hwma-device_sn"
+                  type="text"
+                  value={createForm.device_sn}
+                  onChange={(e) => handleCreateFieldChange('device_sn', e.target.value)}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-device_owner">device_owner</label>
+                <input
+                  id="hwma-device_owner"
+                  type="text"
+                  value={createForm.device_owner}
+                  onChange={(e) => handleCreateFieldChange('device_owner', e.target.value)}
                 />
               </div>
 
-              {/* 上傳照片 */}
               <div className={styles.formGroup}>
-                <label>上傳照片</label>
-                <div
-                  ref={uploadAreaRef}
-                  className={styles.uploadArea}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    onChange={(e) => handleFileSelect(e.target.files)}
-                    style={{ display: 'none' }}
-                  />
-                  <div className={styles.uploadContent}>
-                    <i className="fas fa-cloud-upload-alt"></i>
-                    <p>點擊或拖曳檔案到此處上傳</p>
-                    <span className={styles.uploadHint}>支援 JPG、PNG、GIF 格式</span>
-                  </div>
-                </div>
-
-                {/* 已上傳的照片預覽 */}
-                {formData.photos.length > 0 && (
-                  <div className={styles.photoPreview}>
-                    {formData.photos.map((photo, index) => (
-                      <div key={index} className={styles.photoItem}>
-                        <img 
-                          src={URL.createObjectURL(photo)} 
-                          alt={`預覽 ${index + 1}`}
-                          className={styles.photoThumbnail}
-                        />
-                        <button
-                          type="button"
-                          className={styles.removePhotoButton}
-                          onClick={() => handleRemovePhoto(index)}
-                          aria-label="移除照片"
-                        >
-                          ×
-                        </button>
-                        <span className={styles.photoName}>{photo.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                <label htmlFor="hwma-borrow_device_name">borrow_device_name</label>
+                <input
+                  id="hwma-borrow_device_name"
+                  type="text"
+                  value={createForm.borrow_device_name}
+                  onChange={(e) => handleCreateFieldChange('borrow_device_name', e.target.value)}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-created_by_nt_account">created_by_nt_account</label>
+                <input
+                  id="hwma-created_by_nt_account"
+                  type="text"
+                  value={createForm.created_by_nt_account}
+                  onChange={(e) => handleCreateFieldChange('created_by_nt_account', e.target.value)}
+                />
               </div>
 
-              {/* 表單操作按鈕 */}
               <div className={styles.modalActions}>
-                <button
-                  type="button"
-                  className={styles.cancelButton}
-                  onClick={handleCancel}
-                >
+                <button type="button" className={styles.cancelButton} onClick={handleCancel} disabled={createSubmitting}>
                   取消
                 </button>
-                <button
-                  type="submit"
-                  className={styles.submitButton}
-                >
-                  確認
+                <button type="submit" className={styles.submitButton} disabled={createSubmitting}>
+                  {createSubmitting ? '送出中…' : '建立'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      <Alert
+        isOpen={resultAlert.isOpen}
+        title={resultAlert.title}
+        message={resultAlert.message}
+        type={resultAlert.type}
+        confirmText="確認"
+        cancelText="關閉"
+        onConfirm={closeResultAlert}
+        onCancel={closeResultAlert}
+      />
     </div>
   );
 };
