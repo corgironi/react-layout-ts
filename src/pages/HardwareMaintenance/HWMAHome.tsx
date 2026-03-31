@@ -1,27 +1,29 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import axios from 'axios';
 import styles from './HardwareMaintenance.module.css';
 import WarningBanner, { WarningBannerItem } from '../../components/WarningBanner';
 import Card from '../../components/Card';
 import Pagination from '../../components/Pagination';
 import {
   hardwareMaintenanceAPI,
-  HWMADashboardHomeResponse,
   HWMADashboardKPI,
-  HWMADashboardRepairOrder
+  HWMACaseItem,
+  HWMACaseListParams,
 } from '../../api/api';
 
-interface RepairOrder {
-  reportNumber: string;
-  repairPerson: string;
-  employeeId: string;
-  location: string;
-  equipmentName: string;
-  problemDescription: string;
-  borrowedEquipment: string;
-  subOrderQuantity: number;
-  status: 'repairing' | 'waiting' | 'completed';
-  repairDate: string;
-}
+type IssuedStatusToken = 'null' | 'Progress' | 'Closed';
+
+type AppliedCaseFilters = {
+  issuedStatuses: IssuedStatusToken[];
+  /** YYYY-MM-DD，僅日期 */
+  start_date?: string;
+  end_date?: string;
+  /** 載入資料後之前端分頁每頁筆數 */
+  page_size: number;
+};
+
+/** 後端單次請求筆數，用於搜尋時分段拉齊再於前端篩選 */
+const HWMA_CASE_LIST_FETCH_CHUNK = 300;
 
 interface RepairFormData {
   reportNumber: string;
@@ -34,17 +36,122 @@ interface RepairFormData {
   photos: File[];
 }
 
+const getDefaultKpiData = (): HWMADashboardKPI[] => [
+  { title: '維修中案件', value: 0, change: '-', changeType: 'positive', icon: '🔧', color: 'blue' },
+  { title: '設備等待', value: 0, change: '-', changeType: 'positive', icon: '⏰', color: 'yellow' },
+  { title: '已完成', value: 0, change: '-', changeType: 'positive', icon: '✅', color: 'green' },
+  { title: '平均處理時間', value: '-', change: '-', changeType: 'negative', icon: '⏱️', color: 'purple' },
+];
+
+const parseListAxiosError = (error: unknown): string => {
+  if (axios.isAxiosError(error)) {
+    const data = error.response?.data;
+    if (data && typeof data === 'object' && 'message' in data && typeof (data as { message: unknown }).message === 'string') {
+      return (data as { message: string }).message;
+    }
+    return error.message || '載入列表失敗，請稍後再試';
+  }
+  return '載入列表失敗，請稍後再試';
+};
+
+const buildListParams = (
+  page: number,
+  apiPageSize: number,
+  filters: Pick<AppliedCaseFilters, 'issuedStatuses' | 'start_date' | 'end_date'>,
+): HWMACaseListParams => {
+  const params: HWMACaseListParams = {
+    page,
+    page_size: apiPageSize,
+  };
+  if (filters.issuedStatuses.length > 0) {
+    params.issued_status = filters.issuedStatuses.join(',');
+  }
+  if (filters.start_date) params.start_datetime = filters.start_date;
+  if (filters.end_date) params.end_datetime = filters.end_date;
+  return params;
+};
+
+/** 後端缺欄、null、空字串時統一顯示字面「null」，避免畫面異常或比對錯誤 */
+const displayCaseCell = (value: unknown): string => {
+  if (value === null || value === undefined) return 'null';
+  if (typeof value === 'number' && Number.isNaN(value)) return 'null';
+  if (typeof value === 'string' && value.trim() === '') return 'null';
+  return String(value);
+};
+
+const caseItemFieldTexts = (row: HWMACaseItem): string[] => {
+  const r = row as unknown as Record<string, unknown>;
+  return [
+    displayCaseCell(r.hrt_id),
+    displayCaseCell(r.issued_no),
+    displayCaseCell(r.issued_site),
+    displayCaseCell(r.issued_site_phase),
+    displayCaseCell(r.reporter_nt_account),
+    displayCaseCell(r.reporter_employee_id),
+    displayCaseCell(r.service_type),
+    displayCaseCell(r.device_name),
+    displayCaseCell(r.issue_description),
+    displayCaseCell(r.borrow_device_name),
+    displayCaseCell(r.parent_case_status),
+    displayCaseCell(r.total_sub_tickets),
+    displayCaseCell(r.case_created_at),
+    displayCaseCell(r.current_processor_role_code),
+  ];
+};
+
+/** 與表格欄位一致；用於目前分頁內命中欄位數（排序用） */
+const keywordFieldHitCount = (row: HWMACaseItem, query: string): number => {
+  const q = query.trim().toLowerCase();
+  if (!q) return 0;
+  return caseItemFieldTexts(row).filter((v) => v.toLowerCase().includes(q)).length;
+};
+
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const highlightText = (value: unknown, rawQuery: string): React.ReactNode => {
+  const q = rawQuery.trim();
+  const t = displayCaseCell(value);
+  if (!q) return t;
+  try {
+    const re = new RegExp(`(${escapeRegExp(q)})`, 'gi');
+    const parts = t.split(re);
+    return parts.map((part, i) =>
+      part.toLowerCase() === q.toLowerCase() ? (
+        <mark key={i} className={styles.keywordMark}>
+          {part}
+        </mark>
+      ) : (
+        <React.Fragment key={i}>{part}</React.Fragment>
+      ),
+    );
+  } catch {
+    return t;
+  }
+};
+
+const serverFilterKey = (f: Pick<AppliedCaseFilters, 'issuedStatuses' | 'start_date' | 'end_date'>) =>
+  JSON.stringify({
+    issuedStatuses: [...f.issuedStatuses].sort(),
+    start_date: f.start_date ?? '',
+    end_date: f.end_date ?? '',
+  });
+
 const HWMAHome = () => {
-  const ITEMS_PER_PAGE = 8;
-  const [filter, setFilter] = useState('全部');
-  const [searchQuery, setSearchQuery] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isPageLoading, setIsPageLoading] = useState(false);
-  const [pageError, setPageError] = useState('');
-  const [warningItems, setWarningItems] = useState<WarningBannerItem[]>([]);
-  const [kpiData, setKpiData] = useState<HWMADashboardKPI[]>([]);
-  const [repairOrders, setRepairOrders] = useState<RepairOrder[]>([]);
+  const [listLoading, setListLoading] = useState(false);
+  const [listError, setListError] = useState('');
+  const [warningItems] = useState<WarningBannerItem[]>([]);
+  const [kpiData] = useState<HWMADashboardKPI[]>(() => getDefaultKpiData());
+  const [rawCaseItems, setRawCaseItems] = useState<HWMACaseItem[]>([]);
   const [currentPage, setCurrentPage] = useState(1);
+  const [appliedFilters, setAppliedFilters] = useState<AppliedCaseFilters | null>(null);
+
+  const [draftIssuedStatuses, setDraftIssuedStatuses] = useState<IssuedStatusToken[]>([]);
+  /** 僅作用於「目前分頁」列，即時篩選／排序／高亮，不呼叫 API */
+  const [quickKeyword, setQuickKeyword] = useState('');
+  const [draftStartDate, setDraftStartDate] = useState('');
+  const [draftEndDate, setDraftEndDate] = useState('');
+  const [draftPageSize, setDraftPageSize] = useState(10);
   const [formData, setFormData] = useState<RepairFormData>({
     reportNumber: '',
     repairPerson: '',
@@ -72,121 +179,111 @@ const HWMAHome = () => {
     // 這裡可以添加從狀態中移除項目的邏輯
   };
 
-  const normalizeWarningItem = (item: any, index: number): WarningBannerItem => ({
-    id: item?.id ?? `hwma-warning-${index}`,
-    systemName: item?.systemName ?? 'hardware-maintenance',
-    warningLevel: item?.warningLevel ?? 'info',
-    warningTitle: item?.warningTitle ?? '系統通知',
-    warningMessage: item?.warningMessage ?? '',
-    warningData: item?.warningData ?? {},
-    warningCreator: Array.isArray(item?.warningCreator) ? item.warningCreator : ['系統'],
-    createdAt: item?.createdAt ?? new Date().toISOString()
-  });
-
-  const normalizeRepairOrder = (order: HWMADashboardRepairOrder): RepairOrder => ({
-    reportNumber: order.reportNumber ?? '',
-    repairPerson: order.repairPerson ?? '',
-    employeeId: order.employeeId ?? '',
-    location: order.location ?? '',
-    equipmentName: order.equipmentName ?? '',
-    problemDescription: order.problemDescription ?? '',
-    borrowedEquipment: order.borrowedEquipment ?? '',
-    subOrderQuantity: Number(order.subOrderQuantity ?? 0),
-    status: order.status ?? 'waiting',
-    repairDate: order.repairDate ?? ''
-  });
-
-  const getDefaultKpiData = (): HWMADashboardKPI[] => [
-    { title: '維修中案件', value: 0, change: '-', changeType: 'positive', icon: '🔧', color: 'blue' },
-    { title: '設備等待', value: 0, change: '-', changeType: 'positive', icon: '⏰', color: 'yellow' },
-    { title: '已完成', value: 0, change: '-', changeType: 'positive', icon: '✅', color: 'green' },
-    { title: '平均處理時間', value: '-', change: '-', changeType: 'negative', icon: '⏱️', color: 'purple' }
-  ];
-
-  const buildKpiFromOrders = (orders: RepairOrder[]): HWMADashboardKPI[] => {
-    const repairing = orders.filter((order) => order.status === 'repairing').length;
-    const waiting = orders.filter((order) => order.status === 'waiting').length;
-    const completed = orders.filter((order) => order.status === 'completed').length;
-
-    return [
-      { title: '維修中案件', value: repairing, change: '-', changeType: 'positive', icon: '🔧', color: 'blue' },
-      { title: '設備等待', value: waiting, change: '-', changeType: 'positive', icon: '⏰', color: 'yellow' },
-      { title: '已完成', value: completed, change: '-', changeType: 'positive', icon: '✅', color: 'green' },
-      { title: '平均處理時間', value: '-', change: '-', changeType: 'negative', icon: '⏱️', color: 'purple' }
-    ];
-  };
-
-  const fetchHomeData = async () => {
-    setIsPageLoading(true);
-    setPageError('');
+  const fetchAllRawCases = useCallback(async (filters: AppliedCaseFilters) => {
+    setListLoading(true);
+    setListError('');
     try {
-      const response: HWMADashboardHomeResponse = await hardwareMaintenanceAPI.getHomeData();
-      const warningsSource = Array.isArray((response as any).warningItems)
-        ? (response as any).warningItems
-        : Array.isArray((response as any).warnings)
-          ? (response as any).warnings
-          : [];
-
-      const ordersSource = Array.isArray((response as any).repairOrders)
-        ? (response as any).repairOrders
-        : Array.isArray((response as any).data)
-          ? (response as any).data
-          : [];
-
-      const normalizedOrders = (ordersSource as HWMADashboardRepairOrder[]).map(normalizeRepairOrder);
-      const kpiSource = Array.isArray((response as any).kpiData) ? (response as any).kpiData : [];
-
-      setWarningItems(warningsSource.map(normalizeWarningItem));
-      setRepairOrders(normalizedOrders);
-      setKpiData(
-        kpiSource.length > 0
-          ? kpiSource
-          : normalizedOrders.length > 0
-            ? buildKpiFromOrders(normalizedOrders)
-            : getDefaultKpiData()
-      );
+      const pick = {
+        issuedStatuses: filters.issuedStatuses,
+        start_date: filters.start_date,
+        end_date: filters.end_date,
+      };
+      let page = 1;
+      const merged: HWMACaseItem[] = [];
+      let serverTotal = 0;
+      for (;;) {
+        const data = await hardwareMaintenanceAPI.getCaseList(
+          buildListParams(page, HWMA_CASE_LIST_FETCH_CHUNK, pick),
+        );
+        serverTotal = Number(data.total_count ?? 0);
+        const batch = data.items ?? [];
+        merged.push(...batch);
+        if (batch.length === 0 || merged.length >= serverTotal || batch.length < HWMA_CASE_LIST_FETCH_CHUNK) {
+          break;
+        }
+        page += 1;
+      }
+      setRawCaseItems(merged);
     } catch (error) {
-      console.error('載入 HWMA 首頁資料失敗:', error);
-      setPageError('載入首頁資料失敗，請稍後再試');
-      setWarningItems([]);
-      setKpiData(getDefaultKpiData());
-      setRepairOrders([]);
+      console.error('載入 HWMA 報修案例列表失敗:', error);
+      setListError(parseListAxiosError(error));
+      setRawCaseItems([]);
     } finally {
-      setIsPageLoading(false);
+      setListLoading(false);
+    }
+  }, []);
+
+  const handleCaseSearch = () => {
+    const filters: AppliedCaseFilters = {
+      issuedStatuses: [...draftIssuedStatuses],
+      start_date: draftStartDate.trim() || undefined,
+      end_date: draftEndDate.trim() || undefined,
+      page_size: draftPageSize,
+    };
+    setQuickKeyword('');
+    setCurrentPage(1);
+    setAppliedFilters(filters);
+
+    const sameServerAsLast =
+      appliedFilters &&
+      rawCaseItems.length > 0 &&
+      serverFilterKey(appliedFilters) === serverFilterKey(filters);
+
+    if (!sameServerAsLast) {
+      fetchAllRawCases(filters);
     }
   };
 
-  // 過濾報修單
-  const filteredOrders = useMemo(() => repairOrders.filter(order => {
-    if (filter !== '全部' && order.status !== filter) {
-      return false;
-    }
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        order.reportNumber.toLowerCase().includes(query) ||
-        order.repairPerson.toLowerCase().includes(query) ||
-        order.equipmentName.toLowerCase().includes(query)
-      );
-    }
-    return true;
-  }), [repairOrders, filter, searchQuery]);
+  const toggleDraftStatus = (token: IssuedStatusToken) => {
+    setDraftIssuedStatuses((prev) =>
+      prev.includes(token) ? prev.filter((t) => t !== token) : [...prev, token],
+    );
+  };
 
-  const totalPages = Math.max(1, Math.ceil(filteredOrders.length / ITEMS_PER_PAGE));
-  const paginatedOrders = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-    return filteredOrders.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredOrders, currentPage]);
+  const listPageSize = appliedFilters?.page_size ?? draftPageSize;
 
-  // 獲取狀態標籤文字和樣式
-  const getStatusInfo = (status: string) => {
+  const totalPages = Math.max(1, Math.ceil(rawCaseItems.length / listPageSize));
+
+  const paginatedRawSlice = useMemo(() => {
+    const start = (currentPage - 1) * listPageSize;
+    return rawCaseItems.slice(start, start + listPageSize);
+  }, [rawCaseItems, currentPage, listPageSize]);
+
+  /** 目前分頁內：命中欄位數多者排前，其餘維持原順序 */
+  const displayCaseRows = useMemo(() => {
+    const q = quickKeyword.trim();
+    const decorated = paginatedRawSlice.map((row, origIdx) => ({
+      row,
+      origIdx,
+      hitCount: q ? keywordFieldHitCount(row, q) : 0,
+    }));
+    if (!q) return decorated;
+    return [...decorated].sort((a, b) => {
+      if (b.hitCount !== a.hitCount) return b.hitCount - a.hitCount;
+      return a.origIdx - b.origIdx;
+    });
+  }, [paginatedRawSlice, quickKeyword]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+
+  const showQuickSearchNoMatch =
+    Boolean(appliedFilters) &&
+    rawCaseItems.length > 0 &&
+    paginatedRawSlice.length > 0 &&
+    quickKeyword.trim() !== '' &&
+    displayCaseRows.every((d) => d.hitCount === 0);
+
+  const getParentStatusInfo = (status: string | null | undefined) => {
+    if (status === null || status === undefined || status === '') {
+      return { text: 'null', className: styles.statusWaiting };
+    }
     switch (status) {
-      case 'repairing':
-        return { text: '維修中', className: styles.statusRepairing };
-      case 'waiting':
-        return { text: '設備等待', className: styles.statusWaiting };
-      case 'completed':
-        return { text: '已完成', className: styles.statusCompleted };
+      case 'Progress':
+        return { text: 'Progress', className: styles.statusRepairing };
+      case 'Closed':
+        return { text: 'Closed', className: styles.statusCompleted };
       default:
         return { text: status, className: '' };
     }
@@ -397,19 +494,10 @@ const HWMAHome = () => {
     };
   }, [isModalOpen]);
 
-  useEffect(() => {
-    fetchHomeData();
-  }, []);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchQuery, filter]);
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(totalPages);
-    }
-  }, [currentPage, totalPages]);
+  const handleListPageChange = (page: number) => {
+    if (!appliedFilters) return;
+    setCurrentPage(page);
+  };
 
   return (
     <div className={styles.container}>
@@ -447,97 +535,198 @@ const HWMAHome = () => {
         ))}
       </div>
 
-      {/* 報修單管理區域 */}
+      {/* HWMA 報修案例列表 */}
       <div className={styles.repairOrderSection}>
         <div className={styles.sectionHeader}>
           <div className={styles.sectionTitle}>
             <i className="fas fa-file-alt"></i>
-            <span>報修單管理</span>
+            <span>HWMA 報修案例列表</span>
           </div>
           <div className={styles.headerActions}>
-            <select 
-              className={styles.filterSelect}
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            >
-              <option value="全部">全部</option>
-              <option value="repairing">維修中</option>
-              <option value="waiting">設備等待</option>
-              <option value="completed">已完成</option>
-            </select>
-            <div className={styles.searchBar}>
-              <i className="fas fa-search"></i>
-              <input
-                type="text"
-                placeholder="搜尋報案單號、報修人、設備..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-            <button 
-              className={styles.addButton}
-              onClick={() => setIsModalOpen(true)}
-            >
+            <button type="button" className={styles.addButton} onClick={() => setIsModalOpen(true)}>
               <i className="fas fa-plus"></i>
               <span>新增報修</span>
             </button>
           </div>
         </div>
-        {isPageLoading && <div className={styles.pageState}>載入中...</div>}
-        {!isPageLoading && pageError && <div className={styles.errorState}>{pageError}</div>}
 
-        {/* 報修單表格 */}
+        <div className={styles.caseListFilterStack}>
+          <div className={styles.caseListFiltersApi}>
+            <div className={styles.caseListApiInline}>
+              <span className={styles.caseListApiLabel}>issued_status</span>
+              <div className={styles.caseListStatusChecks} role="group" aria-label="issued_status">
+                <label className={styles.caseListCheckbox}>
+                  <input
+                    type="checkbox"
+                    checked={draftIssuedStatuses.includes('null')}
+                    onChange={() => toggleDraftStatus('null')}
+                  />
+                  <span>null</span>
+                </label>
+                <label className={styles.caseListCheckbox}>
+                  <input
+                    type="checkbox"
+                    checked={draftIssuedStatuses.includes('Progress')}
+                    onChange={() => toggleDraftStatus('Progress')}
+                  />
+                  <span>Progress</span>
+                </label>
+                <label className={styles.caseListCheckbox}>
+                  <input
+                    type="checkbox"
+                    checked={draftIssuedStatuses.includes('Closed')}
+                    onChange={() => toggleDraftStatus('Closed')}
+                  />
+                  <span>Closed</span>
+                </label>
+              </div>
+            </div>
+
+            <label className={styles.caseListApiInline}>
+              <span className={styles.caseListApiLabel}>start_date</span>
+              <input
+                type="date"
+                className={styles.caseListDateInput}
+                value={draftStartDate}
+                onChange={(e) => setDraftStartDate(e.target.value)}
+              />
+            </label>
+            <label className={styles.caseListApiInline}>
+              <span className={styles.caseListApiLabel}>end_date</span>
+              <input
+                type="date"
+                className={styles.caseListDateInput}
+                value={draftEndDate}
+                onChange={(e) => setDraftEndDate(e.target.value)}
+              />
+            </label>
+            <label className={`${styles.caseListApiInline} ${styles.caseListPageSizeField}`}>
+              <span className={styles.caseListApiLabel}>page_size</span>
+              <select
+                className={`${styles.filterSelect} ${styles.caseListControlTall} ${styles.caseListPageSizeSelect}`}
+                value={draftPageSize}
+                onChange={(e) => setDraftPageSize(Number(e.target.value))}
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </label>
+            <button type="button" className={styles.searchSubmitButton} onClick={handleCaseSearch}>
+              <i className="fas fa-search"></i>
+              <span>搜尋</span>
+            </button>
+          </div>
+
+          <div className={styles.caseListQuickBar}>
+            <div className={styles.caseListQuickInner}>
+              <span className={styles.caseListApiLabel}>快速搜尋（前端 · 僅目前分頁）</span>
+              <div
+                className={`${styles.caseListKeywordWrap} ${styles.caseListKeywordWrapGrow} ${styles.caseListQuickKeywordWrap}`}
+              >
+                <i className={`fas fa-bolt ${styles.caseListKeywordIcon}`} aria-hidden />
+                <input
+                  type="search"
+                  className={styles.caseListKeywordInput}
+                  placeholder="即時篩選本頁列、高亮並將命中列排序至前方…"
+                  value={quickKeyword}
+                  onChange={(e) => setQuickKeyword(e.target.value)}
+                  autoComplete="off"
+                  disabled={!appliedFilters || rawCaseItems.length === 0}
+                />
+              </div>
+            </div>
+            <span className={`${styles.caseListFilterHint} ${styles.caseListQuickHint}`}>
+              不另打 API；只影響目前頁面上已顯示的列。換頁後請重新輸入或確認該頁是否仍有目標資料。
+            </span>
+          </div>
+        </div>
+
+        {listLoading && <div className={styles.pageState}>載入列表中...</div>}
+        {!listLoading && listError && <div className={styles.errorState}>{listError}</div>}
+
         <div className={styles.tableWrapper}>
           <table className={styles.repairTable}>
             <thead>
               <tr>
-                <th>報案單號</th>
-                <th>報修人</th>
-                <th>員工工號</th>
-                <th>地點</th>
-                <th>設備名稱</th>
-                <th>問題描述</th>
-                <th>借用設備</th>
-                <th>子單數量</th>
-                <th>狀態</th>
-                <th>報修日期</th>
+                <th>hrt_id</th>
+                <th>issued_no</th>
+                <th>issued_site</th>
+                <th>issued_site_phase</th>
+                <th>reporter_nt_account</th>
+                <th>reporter_employee_id</th>
+                <th>service_type</th>
+                <th>device_name</th>
+                <th>issue_description</th>
+                <th>borrow_device_name</th>
+                <th>parent_case_status</th>
+                <th>total_sub_tickets</th>
+                <th>case_created_at</th>
+                <th>current_processor_role_code</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedOrders.map((order, index) => {
-                const statusInfo = getStatusInfo(order.status);
-                return (
-                  <tr key={index}>
-                    <td>{order.reportNumber}</td>
-                    <td>{order.repairPerson}</td>
-                    <td>{order.employeeId}</td>
-                    <td>{order.location}</td>
-                    <td>{order.equipmentName}</td>
-                    <td>{order.problemDescription}</td>
-                    <td>{order.borrowedEquipment}</td>
-                    <td>
-                      <span className={styles.subOrderBadge}>{order.subOrderQuantity}</span>
-                    </td>
-                    <td>
-                      <span className={`${styles.statusBadge} ${statusInfo.className}`}>
-                        {statusInfo.text}
-                      </span>
-                    </td>
-                    <td>{order.repairDate}</td>
-                    <td>
-                      <button className={styles.actionButton}>
-                        <i className="fas fa-list"></i>
-                        <span>子單管理</span>
-                      </button>
+              {!listLoading && !listError && showQuickSearchNoMatch && (
+                  <tr>
+                    <td colSpan={15} className={styles.emptyCell}>
+                      本頁無符合「{quickKeyword.trim()}」的列（可換頁或使用上方 API 搜尋縮小範圍）
                     </td>
                   </tr>
-                );
-              })}
-              {!isPageLoading && !pageError && paginatedOrders.length === 0 && (
+                )}
+              {!listLoading &&
+                !listError &&
+                !showQuickSearchNoMatch &&
+                appliedFilters &&
+                rawCaseItems.length > 0 &&
+                displayCaseRows.map(({ row, hitCount, origIdx }) => {
+                  const statusInfo = getParentStatusInfo(row.parent_case_status);
+                  const q = quickKeyword;
+                  return (
+                    <tr
+                      key={`hwma-${currentPage}-${origIdx}`}
+                      className={hitCount > 0 ? styles.keywordHitRow : undefined}
+                    >
+                      <td>{highlightText(row.hrt_id, q)}</td>
+                      <td>{highlightText(row.issued_no, q)}</td>
+                      <td>{highlightText(row.issued_site, q)}</td>
+                      <td>{highlightText(row.issued_site_phase, q)}</td>
+                      <td>{highlightText(row.reporter_nt_account, q)}</td>
+                      <td>{highlightText(row.reporter_employee_id, q)}</td>
+                      <td>{highlightText(row.service_type, q)}</td>
+                      <td>{highlightText(row.device_name, q)}</td>
+                      <td className={styles.caseCellDesc}>{highlightText(row.issue_description, q)}</td>
+                      <td>{highlightText(row.borrow_device_name, q)}</td>
+                      <td>
+                        <span className={`${styles.statusBadge} ${statusInfo.className}`}>
+                          {highlightText(statusInfo.text, q)}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={styles.subOrderBadge}>{highlightText(row.total_sub_tickets, q)}</span>
+                      </td>
+                      <td>{highlightText(row.case_created_at, q)}</td>
+                      <td>{highlightText(row.current_processor_role_code, q)}</td>
+                      <td>
+                        <button type="button" className={styles.actionButton}>
+                          <i className="fas fa-list"></i>
+                          <span>子單管理</span>
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              {!listLoading && !listError && appliedFilters && rawCaseItems.length === 0 && (
                 <tr>
-                  <td colSpan={11} className={styles.emptyCell}>
-                    目前沒有資料
+                  <td colSpan={15} className={styles.emptyCell}>
+                    伺服器無符合日期／狀態條件的資料
+                  </td>
+                </tr>
+              )}
+              {!listLoading && !appliedFilters && (
+                <tr>
+                  <td colSpan={15} className={styles.emptyCell}>
+                    請設定條件後點擊「搜尋」載入列表（請求皆帶 X-Time-Zone: Asia/Taipei）
                   </td>
                 </tr>
               )}
@@ -548,7 +737,7 @@ const HWMAHome = () => {
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}
-            onPageChange={setCurrentPage}
+            onPageChange={handleListPageChange}
           />
         </div>
       </div>

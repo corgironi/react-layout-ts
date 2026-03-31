@@ -620,45 +620,72 @@ export interface HWMADashboardKPI {
   color?: 'blue' | 'yellow' | 'green' | 'purple';
 }
 
-export interface HWMADashboardRepairOrder {
-  reportNumber: string;
-  repairPerson: string;
-  employeeId: string;
-  location: string;
-  equipmentName: string;
-  problemDescription: string;
-  borrowedEquipment: string;
-  subOrderQuantity: number;
-  status: 'repairing' | 'waiting' | 'completed';
-  repairDate: string;
+/** HWMA 報修案例列表必填時區（須與後端約定字串完全一致） */
+export const HWMA_X_TIME_ZONE = 'Asia/Taipei';
+
+export interface HWMACaseItem {
+  hrt_id: number;
+  issued_no: string;
+  issued_site: string;
+  issued_site_phase: string;
+  reporter_employee_id: string;
+  reporter_nt_account: string;
+  reporter_phone: string;
+  reporter_organization_code: string;
+  issue_description: string;
+  service_type: string;
+  device_name: string;
+  device_brand: string;
+  device_model: string;
+  device_sn: string;
+  device_owner: string;
+  device_type: string;
+  borrow_device_name: string | null;
+  current_processor_role_code: string;
+  created_by_nt_account: string;
+  case_created_at: string;
+  parent_case_status: string | null;
+  total_sub_tickets: number;
 }
 
-export interface HWMADashboardHomeResponse {
-  warningItems?: any[];
-  kpiData?: HWMADashboardKPI[];
-  repairOrders?: HWMADashboardRepairOrder[];
+export interface HWMACaseListResponse {
+  total_count: number;
+  items: HWMACaseItem[];
 }
 
-// 硬體維護首頁相關 API
+export interface HWMACaseListParams {
+  /** 多值請用逗號連接，例如 `Progress,null`；其中 `null` 為字面字串，代表 parent_case_status 為 null */
+  issued_status?: string;
+  start_datetime?: string;
+  end_datetime?: string;
+  page?: number;
+  page_size?: number;
+}
+
+// 硬體維護 API
 export const hardwareMaintenanceAPI = {
-  getHomeData: async (params?: { site?: string; date?: string }) => {
+  /** GET /HWMA/case — 報修案例列表（含 X-Time-Zone header） */
+  getCaseList: async (params: HWMACaseListParams) => {
     try {
-      console.log('發送請求到 /HWMA/case，參數:', params);
-      const response = await api.get('/HWMA/case', { params });
-      console.log('獲取硬體維護首頁資料 API 響應:', response);
-      return response.data as HWMADashboardHomeResponse;
+      const response = await api.get<HWMACaseListResponse>('/HWMA/case', {
+        params,
+        headers: {
+          'X-Time-Zone': HWMA_X_TIME_ZONE,
+        },
+      });
+      return response.data;
     } catch (error) {
-      console.error('獲取硬體維護首頁資料失敗:', error);
+      console.error('取得 HWMA 報修案例列表失敗:', error);
       if (axios.isAxiosError(error)) {
         console.error('請求錯誤詳情:', {
           status: error.response?.status,
           data: error.response?.data,
-          headers: error.response?.headers
+          headers: error.response?.headers,
         });
       }
       throw error;
     }
-  }
+  },
 };
 
 export default api; 
