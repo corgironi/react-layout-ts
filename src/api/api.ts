@@ -686,8 +686,85 @@ export interface HWMACaseCreateBody {
   created_by_nt_account?: string;
 }
 
+/** GET /HWMA/repaired 母單（與 CaseItem 對齊，欄位可為 null） */
+export interface HWMACaseParentTicket {
+  hrt_id: number;
+  issued_no: string;
+  issued_site: string | null;
+  issued_site_phase: string | null;
+  reporter_employee_id: string | null;
+  reporter_nt_account: string | null;
+  reporter_phone: string | null;
+  reporter_organization_code: string | null;
+  issue_description: string | null;
+  service_type: HWMACaseServiceType;
+  device_name: string | null;
+  device_brand: string | null;
+  device_model: string | null;
+  device_sn: string | null;
+  device_owner: string | null;
+  device_type: HWMACaseDeviceType;
+  borrow_device_name: string | null;
+  current_processor_role_code: string | null;
+  created_by_nt_account: string | null;
+  case_created_at: string;
+  parent_case_status: string | null;
+  total_sub_tickets: number | null;
+}
+
+export type HWMAMaintenanceStepStatus = 'completed' | 'in_progress' | 'pending';
+
+export interface HWMAMaintenanceSubStep {
+  step_index: number;
+  step_name: string;
+  status: HWMAMaintenanceStepStatus;
+}
+
+export interface HWMAMaintenanceDetailItem {
+  hrd_id: number;
+  hrt_id: number;
+  detail_ticket_no: string;
+  detail_issued_remark: string | null;
+  detail_issued_context: string | null;
+  current_status: string;
+  current_process_nt: string;
+  current_process_name: string;
+  current_process_tel: string;
+  created_at: string;
+  is_deleted: boolean;
+  subitems: HWMAMaintenanceSubStep[];
+}
+
+export interface HWMAMaintenanceByCaseResponse {
+  total_count: number;
+  parent_ticket: HWMACaseParentTicket;
+  items: HWMAMaintenanceDetailItem[];
+}
+
 // 硬體維護 API
 export const hardwareMaintenanceAPI = {
+  /** GET /HWMA/repaired?issued_no= — 子單管理（母單＋子單列表） */
+  getRepairedByIssuedNo: async (issued_no: string) => {
+    try {
+      const response = await api.get<HWMAMaintenanceByCaseResponse>('/HWMA/repaired', {
+        params: { issued_no },
+        headers: {
+          'X-Time-Zone': HWMA_X_TIME_ZONE,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('取得 HWMA 維修子單管理資料失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
   /** POST /HWMA/case — 新建報修案例（201 回傳完整 CaseItem） */
   createCase: async (body: HWMACaseCreateBody) => {
     try {

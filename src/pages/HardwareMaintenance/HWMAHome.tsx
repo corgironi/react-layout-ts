@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router';
 import axios from 'axios';
 import styles from './HardwareMaintenance.module.css';
 import WarningBanner, { WarningBannerItem } from '../../components/WarningBanner';
@@ -201,6 +202,7 @@ const serverFilterKey = (f: Pick<AppliedCaseFilters, 'issuedStatuses' | 'start_d
   });
 
 const HWMAHome = () => {
+  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [listLoading, setListLoading] = useState(false);
   const [listError, setListError] = useState('');
@@ -651,7 +653,15 @@ const HWMAHome = () => {
                       <td>{highlightText(row.case_created_at, q)}</td>
                       <td>{highlightText(row.current_processor_role_code, q)}</td>
                       <td>
-                        <button type="button" className={styles.actionButton}>
+                        <button
+                          type="button"
+                          className={styles.actionButton}
+                          onClick={() =>
+                            navigate(
+                              `/hardware-maintenance?caseid=${encodeURIComponent(String(row.issued_no))}`,
+                            )
+                          }
+                        >
                           <i className="fas fa-list"></i>
                           <span>子單管理</span>
                         </button>

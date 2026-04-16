@@ -6,7 +6,7 @@ import Daily from '../pages/attendance/Daily';
 import Leave from '../pages/attendance/Leave';
 import Overtime from '../pages/attendance/Overtime';
 import Summary from '../pages/attendance/Summary';
-import HWMAHome from '../pages/HardwareMaintenance/HWMAHome';
+import HardwareMaintenanceEntry from '../pages/HardwareMaintenance/HardwareMaintenanceEntry';
 import RepairFlow from '../pages/HardwareMaintenance/RepairFlow';
 import SystemPage from '../pages/system/SystemPage';
 import CreateLocalUser from '../pages/system/CreateLocalUser';
@@ -54,7 +54,7 @@ export const router = createBrowserRouter([
       },
       {
         path: 'hardware-maintenance',
-        element: <HWMAHome />
+        element: <HardwareMaintenanceEntry />
       },
       {
         path: 'system',
