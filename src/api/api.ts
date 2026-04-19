@@ -686,8 +686,8 @@ export interface HWMACaseCreateBody {
   created_by_nt_account?: string;
 }
 
-/** GET /HWMA/repaired 母單（與 CaseItem 對齊，欄位可為 null） */
-export interface HWMACaseParentTicket {
+/** GET /HWMA/repaired 每筆子單內嵌之母單快照（鍵名與 hwmacase 對齊；時間為 created_at / updated_at） */
+export interface HWMARepairParentTicket {
   hrt_id: number;
   issued_no: string;
   issued_site: string | null;
@@ -707,22 +707,79 @@ export interface HWMACaseParentTicket {
   borrow_device_name: string | null;
   current_processor_role_code: string | null;
   created_by_nt_account: string | null;
-  case_created_at: string;
-  parent_case_status: string | null;
-  total_sub_tickets: number | null;
+  created_at: string;
+  updated_at: string;
+  is_deleted: boolean;
 }
 
-export type HWMAMaintenanceStepStatus = 'completed' | 'in_progress' | 'pending';
-
-export interface HWMAMaintenanceSubStep {
-  step_index: number;
-  step_name: string;
-  status: HWMAMaintenanceStepStatus;
+export interface HWMARepairFlowCurrentState {
+  state_code: string;
+  name: string;
+  entered_at: string;
+  state_type: string;
+  is_visible: boolean;
+  is_special: boolean;
+  sla_limit_seconds: number;
+  custom_message: null | Record<string, unknown>;
 }
 
-export interface HWMAMaintenanceDetailItem {
-  hrd_id: number;
-  hrt_id: number;
+export interface HWMARepairAvailableAction {
+  action_code: string;
+  action_name: string;
+  to_state_code: string;
+  is_default: boolean;
+  condition_code: string | null;
+  /** 為 true 時於 RepairFlow 頁首右上角顯示 */
+  is_special?: boolean;
+}
+
+export interface HWMARepairHistoryEntry {
+  from_state_code: string;
+  to_state_code: string;
+  action_code: string;
+  action_name: string;
+  action_by: string;
+  entered_at: string;
+  left_at: string | null;
+  duration_seconds: number | null;
+  transaction_id: string;
+}
+
+export interface HWMARepairDefaultFuturePath {
+  ws_id: string;
+  state_code: string;
+  state_name: string;
+  state_type: string;
+  is_start: boolean;
+  is_final: boolean;
+  is_special: boolean;
+  is_visible: boolean;
+  is_current: boolean;
+  default_transition_action_code: string | null;
+  default_transition_action_name: string | null;
+  default_transition_to_ws_id: string | null;
+}
+
+export interface HWMARepairEventLogEntry {
+  event_code: string;
+  event_name: string;
+  event_by: string;
+  event_at: string;
+}
+
+export interface HWMARepairFlowStatus {
+  instance_id: string;
+  business_id: string;
+  flow_code: string;
+  current_state: HWMARepairFlowCurrentState;
+  available_actions: HWMARepairAvailableAction[];
+  history: HWMARepairHistoryEntry[];
+  default_future_paths: HWMARepairDefaultFuturePath[];
+  event_log: HWMARepairEventLogEntry[];
+}
+
+/** GET /HWMA/repaired 單筆子單（基本資訊 + 母單快照 + 流程引擎） */
+export interface HWMARepairItem {
   detail_ticket_no: string;
   detail_issued_remark: string | null;
   detail_issued_context: string | null;
@@ -730,23 +787,27 @@ export interface HWMAMaintenanceDetailItem {
   current_process_nt: string;
   current_process_name: string;
   current_process_tel: string;
+  hrd_id: number;
+  hrt_id: number;
   created_at: string;
+  updated_at: string;
   is_deleted: boolean;
-  subitems: HWMAMaintenanceSubStep[];
+  parent_ticket: HWMARepairParentTicket;
+  flow_status: HWMARepairFlowStatus;
 }
 
-export interface HWMAMaintenanceByCaseResponse {
+/** GET /HWMA/repaired 成功 200 */
+export interface HWMARepairByCaseResponse {
   total_count: number;
-  parent_ticket: HWMACaseParentTicket;
-  items: HWMAMaintenanceDetailItem[];
+  items: HWMARepairItem[];
 }
 
 // 硬體維護 API
 export const hardwareMaintenanceAPI = {
-  /** GET /HWMA/repaired?issued_no= — 子單管理（母單＋子單列表） */
+  /** GET /HWMA/repaired?issued_no= — 子單管理（每筆含 parent_ticket、flow_status） */
   getRepairedByIssuedNo: async (issued_no: string) => {
     try {
-      const response = await api.get<HWMAMaintenanceByCaseResponse>('/HWMA/repaired', {
+      const response = await api.get<HWMARepairByCaseResponse>('/HWMA/repaired', {
         params: { issued_no },
         headers: {
           'X-Time-Zone': HWMA_X_TIME_ZONE,
@@ -755,6 +816,28 @@ export const hardwareMaintenanceAPI = {
       return response.data;
     } catch (error) {
       console.error('取得 HWMA 維修子單管理資料失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /** GET /HWMA/repaired/{rid} — 單筆子單（rid 為 detail_ticket_no，須 URL 編碼） */
+  getRepairedByRid: async (rid: string) => {
+    try {
+      const encoded = encodeURIComponent(rid);
+      const response = await api.get<HWMARepairItem>(`/HWMA/repaired/${encoded}`, {
+        headers: {
+          'X-Time-Zone': HWMA_X_TIME_ZONE,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('取得 HWMA 單筆維修子單失敗:', error);
       if (axios.isAxiosError(error)) {
         console.error('請求錯誤詳情:', {
           status: error.response?.status,

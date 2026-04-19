@@ -8,7 +8,7 @@
 .pageHeader {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
   margin-bottom: 1.5rem;
   flex-wrap: wrap;
   gap: 1rem;
@@ -18,6 +18,64 @@
   display: flex;
   align-items: center;
   gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.backInline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--primary);
+  cursor: pointer;
+}
+
+.backInline:hover {
+  border-color: var(--primary);
+}
+
+.headerRightCluster {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+.headerSpecialActions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.specialActionBtn {
+  padding: 0.45rem 0.95rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.specialActionBtn:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.ridBlock {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
 }
 
 .headerLeft i {
@@ -39,16 +97,56 @@
 }
 
 .ridLabel {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
-  font-weight: 500;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .ridValue {
   font-size: 1rem;
   color: var(--primary);
   font-weight: 600;
-  font-family: 'Courier New', monospace;
+  font-family: ui-monospace, 'Courier New', monospace;
+}
+
+.statusChip {
+  margin-left: auto;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: rgba(var(--primary-rgb), 0.12);
+  color: var(--primary);
+}
+
+.stateLoading {
+  padding: 2rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.9375rem;
+}
+
+.stateError {
+  padding: 1rem 0;
+  color: var(--danger);
+  font-size: 0.9375rem;
+}
+
+.backLink {
+  display: inline-flex;
+  margin-bottom: 1rem;
+  padding: 0.35rem 0;
+  border: none;
+  background: none;
+  color: var(--primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.backLink:hover {
+  text-decoration: underline;
 }
 
 /* 案件資訊卡片 */
@@ -64,7 +162,8 @@
 .caseInfoHeader {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  flex-wrap: wrap;
+  gap: 0.75rem 1rem;
   margin-bottom: 1.25rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border);
@@ -107,6 +206,17 @@
   font-size: 0.875rem;
   color: var(--text-primary);
   font-weight: 500;
+}
+
+.subTicketNote {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.subTicketNote p {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
 }
 
 /* 操作按鈕區域 */
@@ -163,6 +273,19 @@
   opacity: 0.9;
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(var(--danger-rgb), 0.3);
+}
+
+.actionBtnSecondary {
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+
+.actionBtnSecondary:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+  box-shadow: none;
+  transform: none;
 }
 
 .actionBtn i {
