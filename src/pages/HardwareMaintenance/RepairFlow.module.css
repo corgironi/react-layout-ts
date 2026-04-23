@@ -4,6 +4,183 @@
   min-height: 100%;
 }
 
+.bannerError {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background: rgba(var(--danger-rgb), 0.12);
+  color: var(--danger);
+  font-size: 0.875rem;
+}
+
+.bannerDismiss {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--danger);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+  overflow-y: auto;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.modalDialog {
+  width: 100%;
+  max-width: 960px;
+  margin: auto;
+  padding: 1.5rem;
+  border-radius: 12px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+}
+
+.modalTitle {
+  margin: 0 0 1rem;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.modalSubTitle {
+  margin: 1.25rem 0 0.5rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.modalLabel {
+  display: block;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.modalTextarea {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  resize: vertical;
+}
+
+.modalMuted {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin: 0.35rem 0;
+}
+
+.modalError {
+  font-size: 0.875rem;
+  color: var(--danger);
+  margin: 0.35rem 0;
+}
+
+.warrantyHint {
+  font-size: 0.875rem;
+  margin: 0 0 1rem;
+  color: var(--text-primary);
+}
+
+.pricebookWrap,
+.quoteTableWrap {
+  overflow-x: auto;
+  margin-bottom: 0.5rem;
+}
+
+.dataTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+}
+
+.dataTable th,
+.dataTable td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.6rem;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.dataTable th {
+  background: var(--secondary);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.tableBtn {
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--primary);
+}
+
+.tableBtn:hover:not(:disabled) {
+  border-color: var(--primary);
+}
+
+.tableBtnDanger {
+  padding: 0.3rem 0.65rem;
+  border-radius: 6px;
+  border: none;
+  background: rgba(var(--danger-rgb), 0.12);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--danger);
+}
+
+.modalInput {
+  width: 4rem;
+  padding: 0.35rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--text-primary);
+}
+
+.modalInputWide {
+  min-width: 8rem;
+  max-width: 12rem;
+  width: 100%;
+  padding: 0.35rem 0.4rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--text-primary);
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
 /* 頁面標題 */
 .pageHeader {
   display: flex;
@@ -286,6 +463,14 @@
   color: var(--primary);
   box-shadow: none;
   transform: none;
+}
+
+.actionBtn:disabled,
+.specialActionBtn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
 }
 
 .actionBtn i {

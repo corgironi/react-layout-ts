@@ -758,6 +758,8 @@ export interface HWMARepairDefaultFuturePath {
   default_transition_action_code: string | null;
   default_transition_action_name: string | null;
   default_transition_to_ws_id: string | null;
+  /** 若後端提供，則於流程節點旁顯示處理時間上限 */
+  sla_limit_seconds?: number | null;
 }
 
 export interface HWMARepairEventLogEntry {
@@ -802,6 +804,40 @@ export interface HWMARepairByCaseResponse {
   items: HWMARepairItem[];
 }
 
+export type HWMADeviceWarrantyHint = 'IN_WARRANTY' | 'OUT_WARRANTY';
+
+export interface HWMAPricebookRow {
+  pricebook_id: number | string;
+  item_category: string;
+  item_name: string;
+  item_spec: string;
+  device_model: string;
+  unit_price: number;
+  currency: string;
+}
+
+export interface HWMAPricebookResponse {
+  items: HWMAPricebookRow[];
+  device_warranty_hint: HWMADeviceWarrantyHint;
+}
+
+/** PATCH /HWMA/transition/:repairId 請求 body */
+export interface HWMATransitionRequestBody {
+  action_code: string;
+  context: Record<string, unknown>;
+}
+
+/** VENDOR_ISSUE_SUBMIT 之 repair_items 單筆 */
+export interface HWMAVendorTransitionRepairItem {
+  item_category: string;
+  item_name: string;
+  item_spec: string;
+  device_model: string;
+  count: number;
+  remark?: string;
+  warranty_type?: HWMADeviceWarrantyHint;
+}
+
 // 硬體維護 API
 export const hardwareMaintenanceAPI = {
   /** GET /HWMA/repaired?issued_no= — 子單管理（每筆含 parent_ticket、flow_status） */
@@ -838,6 +874,59 @@ export const hardwareMaintenanceAPI = {
       return response.data;
     } catch (error) {
       console.error('取得 HWMA 單筆維修子單失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /** GET /HWMA/pricebook — 價目與保固提示（hrt_id 可選） */
+  getPricebook: async (hrt_id?: number) => {
+    try {
+      const response = await api.get<HWMAPricebookResponse>('/HWMA/pricebook', {
+        params:
+          hrt_id != null && Number.isFinite(hrt_id) ? { hrt_id } : undefined,
+        headers: {
+          'X-Time-Zone': HWMA_X_TIME_ZONE,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('取得 HWMA 價目失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * PATCH /HWMA/transition/{repairId} — 子單流程轉移（repairId 為 detail_ticket_no，須 URL 編碼）
+   * 200 回傳與 GET /HWMA/repaired/:rid 相同之一筆 HWMARepairItem
+   */
+  patchTransition: async (repairId: string, body: HWMATransitionRequestBody) => {
+    try {
+      const encoded = encodeURIComponent(repairId);
+      const response = await api.patch<HWMARepairItem>(
+        `/HWMA/transition/${encoded}`,
+        body,
+        {
+          headers: {
+            'X-Time-Zone': HWMA_X_TIME_ZONE,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      console.error('HWMA 流程轉移失敗:', error);
       if (axios.isAxiosError(error)) {
         console.error('請求錯誤詳情:', {
           status: error.response?.status,

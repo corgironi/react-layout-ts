@@ -4,6 +4,8 @@ import styles from './StepFlow.module.css';
 export interface StepFlowStep {
   id: string;
   title: string; // 步驟標題
+  /** 由 sla_limit_seconds 轉成「處理時間 X 小時 Y 分 Z 秒」，顯示於節點旁 */
+  slaLabel?: string;
   comment?: string; // 步驟描述/判定內容
   timestamp?: string; // 時間戳
   responsible?: string; // 負責人
@@ -112,6 +114,18 @@ const StepFlow: React.FC<StepFlowProps> = ({ steps, className = '' }) => {
             <div className={styles.stepHeader}>
               <div className={styles.stepTitleWrapper}>
                 <h3 className={styles.stepTitle}>{step.title}</h3>
+                {step.slaLabel && (
+                  <span
+                    className={styles.stepSla}
+                    title={
+                      step.slaLabel.startsWith('耗時')
+                        ? '此步驟實際停留／處理時間'
+                        : '此節點處理時間上限（SLA）'
+                    }
+                  >
+                    {step.slaLabel}
+                  </span>
+                )}
                 {getStatusBadge(step)}
               </div>
             </div>
