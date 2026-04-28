@@ -5,8 +5,8 @@ import styles from './RepairFlow.module.css';
 import StepFlow, { StepFlowStep } from '../../components/StepFlow';
 import {
   hardwareMaintenanceAPI,
-  HWMAPricebookResponse,
-  HWMAPricebookRow,
+  HWMARepairItemsByCaseResponse,
+  HWMARepairItemOption,
   HWMARepairAvailableAction,
   HWMARepairHistoryEntry,
   HWMARepairItem,
@@ -82,7 +82,21 @@ function historyElapsedSeconds(h: HWMARepairHistoryEntry): number | null {
 }
 
 function isVendorIssueSubmitAction(code: string): boolean {
-  return code === 'VENDOR_ISSUE_SUBMIT';
+  return code.trim().toUpperCase() === 'VENDOR_ISSUE_SUBMIT';
+}
+
+function isSetRequiredDateAction(code: string): boolean {
+  const normalized = code.trim().toUpperCase();
+  return normalized === 'SET_REPQIRED_DATE' || normalized === 'SET_REQUIRED_DATE';
+}
+
+function isVendorIssueStatus(status: string): boolean {
+  return status.trim().toLowerCase() === 'vendor_issue';
+}
+
+function isConfirmRequiredDateStatus(status: string): boolean {
+  const normalized = status.trim().toLowerCase();
+  return normalized === 'confirm_reqpired_date' || normalized === 'confirm_required_date';
 }
 
 type VendorQuoteLine = {
@@ -93,24 +107,31 @@ type VendorQuoteLine = {
   device_model: string;
   count: number;
   remark: string;
+  unit_price?: number | null;
+  currency?: string | null;
 };
 
-function lineFromPricebook(row: HWMAPricebookRow): VendorQuoteLine {
+function lineFromRepairItemOption(row: HWMARepairItemOption): VendorQuoteLine {
   return {
-    key: `pb-${row.pricebook_id}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+    key: `ri-${row.item_name}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
     item_category: row.item_category,
     item_name: row.item_name,
     item_spec: row.item_spec,
     device_model: row.device_model,
     count: 1,
     remark: '',
+    unit_price: row.unit_price ?? null,
+    currency: row.currency ?? null,
   };
 }
 
 /**
  * history → 已完成；current_state → 進行中；default_future_paths 於目前節點之後 → 待處理
  */
-function buildStepsFromRepairItem(item: HWMARepairItem): StepFlowStep[] {
+function buildStepsFromRepairItem(
+  item: HWMARepairItem,
+  activeStepActionButton?: StepFlowStep['actionButton'],
+): StepFlowStep[] {
   const fs = item.flow_status;
   const steps: StepFlowStep[] = [];
 
@@ -140,6 +161,7 @@ function buildStepsFromRepairItem(item: HWMARepairItem): StepFlowStep[] {
       item.current_process_nt?.trim() ||
       undefined,
     status: 'active',
+    actionButton: activeStepActionButton,
   });
 
   const paths = fs.default_future_paths ?? [];
@@ -173,11 +195,13 @@ const RepairFlow = () => {
   const transitionLockRef = useRef(false);
 
   const [vendorModalOpen, setVendorModalOpen] = useState(false);
+  const [requiredDateModalOpen, setRequiredDateModalOpen] = useState(false);
+  const [requiredDate, setRequiredDate] = useState('');
   const [vendorMsg, setVendorMsg] = useState('');
   const [quoteLines, setQuoteLines] = useState<VendorQuoteLine[]>([]);
-  const [pricebook, setPricebook] = useState<HWMAPricebookResponse | null>(null);
-  const [pbLoading, setPbLoading] = useState(false);
-  const [pbError, setPbError] = useState('');
+  const [repairItemOptions, setRepairItemOptions] = useState<HWMARepairItemsByCaseResponse>([]);
+  const [optionsLoading, setOptionsLoading] = useState(false);
+  const [optionsError, setOptionsError] = useState('');
 
   const load = useCallback(async () => {
     if (!rid?.trim()) {
@@ -207,26 +231,67 @@ const RepairFlow = () => {
   useEffect(() => {
     if (!vendorModalOpen || !data) return;
     let cancelled = false;
-    setPbLoading(true);
-    setPbError('');
-    setPricebook(null);
+    setOptionsLoading(true);
+    setOptionsError('');
+    setRepairItemOptions([]);
+    const caseId = data.parent_ticket?.issued_no?.trim() || String(data.hrt_id);
     hardwareMaintenanceAPI
-      .getPricebook(data.hrt_id)
-      .then((pb) => {
-        if (!cancelled) setPricebook(pb);
+      .getRepairItemsByCase(caseId)
+      .then((resp) => {
+        if (!cancelled) setRepairItemOptions(resp);
       })
       .catch((e) => {
-        if (!cancelled) setPbError(parseApiError(e));
+        if (!cancelled) setOptionsError(parseApiError(e));
       })
       .finally(() => {
-        if (!cancelled) setPbLoading(false);
+        if (!cancelled) setOptionsLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [vendorModalOpen, data?.hrt_id]);
+  }, [vendorModalOpen, data?.hrt_id, data?.parent_ticket?.issued_no]);
 
-  const steps = useMemo(() => (data ? buildStepsFromRepairItem(data) : []), [data]);
+  const vendorIssueAction = useMemo(
+    () => (data?.flow_status.available_actions ?? []).find((a) => isVendorIssueSubmitAction(a.action_code)),
+    [data],
+  );
+  const setRequiredDateAction = useMemo(
+    () => (data?.flow_status.available_actions ?? []).find((a) => isSetRequiredDateAction(a.action_code)),
+    [data],
+  );
+
+  const activeStepActionButton = useMemo<StepFlowStep['actionButton'] | undefined>(() => {
+    if (!data) return undefined;
+    if (isVendorIssueStatus(data.current_status) && vendorIssueAction) {
+      return {
+        label: '建立維修項目',
+        icon: 'fas fa-plus',
+        variant: 'primary',
+        onClick: () => {
+          setVendorMsg('');
+          setQuoteLines([]);
+          setVendorModalOpen(true);
+        },
+      };
+    }
+    if (isConfirmRequiredDateStatus(data.current_status) && setRequiredDateAction) {
+      return {
+        label: '選擇到料日期',
+        icon: 'far fa-calendar-alt',
+        variant: 'primary',
+        onClick: () => {
+          setRequiredDate('');
+          setRequiredDateModalOpen(true);
+        },
+      };
+    }
+    return undefined;
+  }, [data, vendorIssueAction, setRequiredDateAction]);
+
+  const steps = useMemo(
+    () => (data ? buildStepsFromRepairItem(data, activeStepActionButton) : []),
+    [data, activeStepActionButton],
+  );
 
   const specialActions = useMemo(
     () => (data?.flow_status.available_actions ?? []).filter((a) => a.is_special === true),
@@ -234,7 +299,17 @@ const RepairFlow = () => {
   );
 
   const regularActions = useMemo(
-    () => (data?.flow_status.available_actions ?? []).filter((a) => a.is_special !== true),
+    () => {
+      const currentStatus = data?.current_status ?? '';
+      return (data?.flow_status.available_actions ?? []).filter(
+        (a) =>
+          a.is_special !== true &&
+          !(
+            (isVendorIssueStatus(currentStatus) && isVendorIssueSubmitAction(a.action_code)) ||
+            (isConfirmRequiredDateStatus(currentStatus) && isSetRequiredDateAction(a.action_code))
+          ),
+      );
+    },
     [data],
   );
 
@@ -278,6 +353,11 @@ const RepairFlow = () => {
         setVendorModalOpen(true);
         return;
       }
+      if (isSetRequiredDateAction(action.action_code)) {
+        setRequiredDate('');
+        setRequiredDateModalOpen(true);
+        return;
+      }
       await runTransition(action, {});
     },
     [data, runTransition],
@@ -310,6 +390,7 @@ const RepairFlow = () => {
         context: {
           repaired_issued_msg: vendorMsg,
           repair_items,
+          reapir_items: repair_items,
         },
       });
       setData(updated);
@@ -324,8 +405,20 @@ const RepairFlow = () => {
     }
   }, [data, quoteLines, vendorMsg]);
 
-  const addPricebookRow = (row: HWMAPricebookRow) => {
-    setQuoteLines((prev) => [...prev, lineFromPricebook(row)]);
+  const submitRequiredDate = useCallback(async () => {
+    if (!data || !setRequiredDateAction || transitionLockRef.current) return;
+    if (!requiredDate) {
+      setBannerError('請先選擇日期');
+      return;
+    }
+    await runTransition(setRequiredDateAction, {
+      repqir_date: requiredDate,
+    });
+    setRequiredDateModalOpen(false);
+  }, [data, requiredDate, runTransition, setRequiredDateAction]);
+
+  const addRepairItemOptionRow = (row: HWMARepairItemOption) => {
+    setQuoteLines((prev) => [...prev, lineFromRepairItemOption(row)]);
   };
 
   const removeQuoteLine = (key: string) => {
@@ -372,13 +465,6 @@ const RepairFlow = () => {
 
   const pt = data.parent_ticket;
   const siteLine = [pt.issued_site, pt.issued_site_phase].filter(Boolean).join(' ') || '—';
-
-  const warrantyHintLabel =
-    pricebook?.device_warranty_hint === 'IN_WARRANTY'
-      ? '保固內'
-      : pricebook?.device_warranty_hint === 'OUT_WARRANTY'
-        ? '保固外'
-        : null;
 
   return (
     <div className={styles.container}>
@@ -523,12 +609,6 @@ const RepairFlow = () => {
             <h3 id="vendor-modal-title" className={styles.modalTitle}>
               廠商報價／料件送出（VENDOR_ISSUE_SUBMIT）
             </h3>
-            {warrantyHintLabel && (
-              <p className={styles.warrantyHint}>
-                裝置保固提示：<strong>{warrantyHintLabel}</strong>
-                {pricebook?.device_warranty_hint ? `（${pricebook.device_warranty_hint}）` : ''}
-              </p>
-            )}
             <label className={styles.modalLabel} htmlFor="vendor-msg">
               報價說明（repaired_issued_msg，可空白）
             </label>
@@ -541,50 +621,41 @@ const RepairFlow = () => {
               disabled={actionBusy}
             />
 
-            <h4 className={styles.modalSubTitle}>價目（Get pricebook）</h4>
-            {pbLoading && <p className={styles.modalMuted}>載入價目中…</p>}
-            {pbError && <p className={styles.modalError}>{pbError}</p>}
-            {!pbLoading && !pbError && pricebook && (
-              <div className={styles.pricebookWrap}>
-                <table className={styles.dataTable}>
-                  <thead>
-                    <tr>
-                      <th>類別</th>
-                      <th>品名</th>
-                      <th>規格</th>
-                      <th>機型</th>
-                      <th>單價</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(pricebook.items ?? []).map((row, idx) => (
-                      <tr key={`${row.pricebook_id}-${idx}`}>
-                        <td>{row.item_category}</td>
-                        <td>{row.item_name}</td>
-                        <td>{row.item_spec}</td>
-                        <td>{row.device_model}</td>
-                        <td>
-                          {row.unit_price} {row.currency}
-                        </td>
-                        <td>
-                          <button
-                            type="button"
-                            className={styles.tableBtn}
-                            disabled={actionBusy}
-                            onClick={() => addPricebookRow(row)}
-                          >
-                            加入
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                {(pricebook.items ?? []).length === 0 && (
-                  <p className={styles.modalMuted}>價目無資料。</p>
+            <h4 className={styles.modalSubTitle}>可維修品項（GET /cases/:case_id/reqpir-items）</h4>
+            {optionsLoading && <p className={styles.modalMuted}>載入可維修品項中…</p>}
+            {optionsError && <p className={styles.modalError}>{optionsError}</p>}
+            {!optionsLoading && !optionsError && (
+              <>
+                <div className={styles.modelInfoCard}>
+                  <div className={styles.modelInfoTitle}>目前選擇的料件適用機型</div>
+                  <div className={styles.modelInfoValue}>
+                    {repairItemOptions[0]?.device_model || data.parent_ticket.device_model || '—'}
+                  </div>
+                </div>
+                <div className={styles.optionGrid}>
+                  {repairItemOptions.map((row, idx) => (
+                    <button
+                      key={`${row.item_name}-${row.item_spec}-${idx}`}
+                      type="button"
+                      className={styles.optionCard}
+                      disabled={actionBusy}
+                      onClick={() => addRepairItemOptionRow(row)}
+                    >
+                      <div className={styles.optionName}>{row.item_name}</div>
+                      <div className={styles.optionSpec}>{row.item_spec || '-'}</div>
+                      <div className={styles.optionPrice}>
+                        {typeof row.unit_price === 'number'
+                          ? `${row.currency ?? 'NT$'} ${row.unit_price}`
+                          : '時價'}
+                      </div>
+                      <span className={styles.optionPlus}>+</span>
+                    </button>
+                  ))}
+                </div>
+                {repairItemOptions.length === 0 && (
+                  <p className={styles.modalMuted}>可維修品項無資料。</p>
                 )}
-              </div>
+              </>
             )}
 
             <h4 className={styles.modalSubTitle}>本次報價項目（至少一筆）</h4>
@@ -599,6 +670,7 @@ const RepairFlow = () => {
                       <th>品名</th>
                       <th>規格</th>
                       <th>機型</th>
+                      <th>單價</th>
                       <th>數量</th>
                       <th>備註</th>
                       <th />
@@ -611,6 +683,11 @@ const RepairFlow = () => {
                         <td>{line.item_name}</td>
                         <td>{line.item_spec}</td>
                         <td>{line.device_model}</td>
+                        <td>
+                          {typeof line.unit_price === 'number'
+                            ? `${line.currency ?? 'NT$'} ${line.unit_price}`
+                            : '時價'}
+                        </td>
                         <td>
                           <input
                             type="number"
@@ -667,6 +744,57 @@ const RepairFlow = () => {
                 onClick={() => void submitVendorQuote()}
               >
                 {actionBusy ? '送出中…' : '送出 VENDOR_ISSUE_SUBMIT'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {requiredDateModalOpen && (
+        <div
+          className={styles.modalBackdrop}
+          onClick={() => {
+            if (!actionBusy) setRequiredDateModalOpen(false);
+          }}
+          role="presentation"
+        >
+          <div
+            className={styles.modalDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="required-date-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="required-date-modal-title" className={styles.modalTitle}>
+              設定到料日期（SET_REPQIRED_DATE）
+            </h3>
+            <label htmlFor="required-date-input" className={styles.modalLabel}>
+              到料日期
+            </label>
+            <input
+              id="required-date-input"
+              type="date"
+              className={styles.modalDateInput}
+              value={requiredDate}
+              onChange={(e) => setRequiredDate(e.target.value)}
+              disabled={actionBusy}
+            />
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${styles.actionBtnSecondary}`}
+                disabled={actionBusy}
+                onClick={() => setRequiredDateModalOpen(false)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
+                disabled={actionBusy || !requiredDate}
+                onClick={() => void submitRequiredDate()}
+              >
+                {actionBusy ? '送出中…' : '送出日期'}
               </button>
             </div>
           </div>

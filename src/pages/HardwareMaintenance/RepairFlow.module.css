@@ -107,6 +107,77 @@
   margin-bottom: 0.5rem;
 }
 
+.modelInfoCard {
+  margin-bottom: 0.9rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid rgba(var(--primary-rgb), 0.55);
+  border-radius: 10px;
+  background: rgba(var(--primary-rgb), 0.06);
+}
+
+.modelInfoTitle {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.3rem;
+}
+
+.modelInfoValue {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.optionGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.optionCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-align: left;
+  padding: 0.85rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.optionCard:hover:not(:disabled) {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px rgba(var(--primary-rgb), 0.18);
+}
+
+.optionName {
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.optionSpec {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+
+.optionPrice {
+  margin-top: 0.3rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.optionPlus {
+  position: absolute;
+  right: 0.6rem;
+  top: 0.5rem;
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+}
+
 .dataTable {
   width: 100%;
   border-collapse: collapse;
@@ -171,6 +242,17 @@
   border: 1px solid var(--border);
   background: var(--secondary);
   color: var(--text-primary);
+}
+
+.modalDateInput {
+  width: 100%;
+  max-width: 16rem;
+  padding: 0.6rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
 }
 
 .modalActions {

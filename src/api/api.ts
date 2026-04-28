@@ -853,6 +853,17 @@ export interface HWMAPricebookResponse {
   device_warranty_hint: HWMADeviceWarrantyHint;
 }
 
+export interface HWMARepairItemOption {
+  item_category: string;
+  item_name: string;
+  item_spec: string;
+  device_model: string;
+  unit_price?: number | null;
+  currency?: string | null;
+}
+
+export type HWMARepairItemsByCaseResponse = HWMARepairItemOption[];
+
 /** PATCH /HWMA/transition/:repairId 請求 body */
 export interface HWMATransitionRequestBody {
   action_code: string;
@@ -929,6 +940,32 @@ export const hardwareMaintenanceAPI = {
       return response.data;
     } catch (error) {
       console.error('取得 HWMA 價目失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /** GET /cases/:case_id/reqpir-items — 以 issued_no 或 hrt_id 取得可維修品項 */
+  getRepairItemsByCase: async (case_id: string | number) => {
+    try {
+      const encoded = encodeURIComponent(String(case_id));
+      const response = await api.get<HWMARepairItemsByCaseResponse | { items?: HWMARepairItemOption[] }>(
+        `/cases/${encoded}/reqpir-items`,
+        {
+          headers: {
+            'X-Time-Zone': HWMA_X_TIME_ZONE,
+          },
+        },
+      );
+      if (Array.isArray(response.data)) return response.data;
+      return Array.isArray(response.data?.items) ? response.data.items : [];
+    } catch (error) {
+      console.error('取得可維修品項失敗:', error);
       if (axios.isAxiosError(error)) {
         console.error('請求錯誤詳情:', {
           status: error.response?.status,
