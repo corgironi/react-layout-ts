@@ -686,6 +686,38 @@ export interface HWMACaseCreateBody {
   created_by_nt_account?: string;
 }
 
+/** GET /:caseid/case-center_data 回傳 */
+export interface HWMACaseCenterPrefillResponse {
+  device_info: {
+    device_name: string;
+    device_brand: string;
+    device_model: string;
+    device_sn: string;
+    device_owner: string;
+    device_type: HWMACaseDeviceType;
+  };
+  issue_description: string;
+  issued_no: string;
+  issued_site: string;
+  issued_site_phase: string;
+  reporter_employee_id: string;
+  reporter_nt_account: string;
+  reporter_phone: string;
+  reporter_organization_code: string;
+  reporter_name?: string;
+}
+
+/** GET /itcms/:device_name/device-info 回傳 */
+export interface HWMAItcmsDeviceInfoResponse {
+  device_name: string;
+  device_brand: string;
+  device_model: string;
+  device_sn: string;
+  device_owner: string;
+  device_type: HWMACaseDeviceType;
+  device_warranty_date: string;
+}
+
 /** GET /HWMA/repaired 每筆子單內嵌之母單快照（鍵名與 hwmacase 對齊；時間為 created_at / updated_at） */
 export interface HWMARepairParentTicket {
   hrt_id: number;
@@ -927,6 +959,56 @@ export const hardwareMaintenanceAPI = {
       return response.data;
     } catch (error) {
       console.error('HWMA 流程轉移失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /** GET /:caseid/case-center_data — 以 issued_no 取得報案系統預填資料 */
+  getCaseCenterPrefill: async (caseid: string) => {
+    try {
+      const encoded = encodeURIComponent(caseid);
+      const response = await api.get<HWMACaseCenterPrefillResponse>(
+        `/${encoded}/case-center_data`,
+        {
+          headers: {
+            'X-Time-Zone': HWMA_X_TIME_ZONE,
+          },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      console.error('取得 Case Center 預填資料失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /** GET /itcms/:device_name/device-info — 以 device_name 取得 ITCMS 設備資料 */
+  getItcmsDeviceInfo: async (device_name: string) => {
+    try {
+      const encoded = encodeURIComponent(device_name);
+      const response = await api.get<HWMAItcmsDeviceInfoResponse>(
+        `/itcms/${encoded}/device-info`,
+        {
+          headers: {
+            'X-Time-Zone': HWMA_X_TIME_ZONE,
+          },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      console.error('取得 ITCMS 設備資料失敗:', error);
       if (axios.isAxiosError(error)) {
         console.error('請求錯誤詳情:', {
           status: error.response?.status,

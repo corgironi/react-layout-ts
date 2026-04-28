@@ -9,6 +9,7 @@ import Alert from '../../components/Alert';
 import {
   hardwareMaintenanceAPI,
   HWMADashboardKPI,
+  HWMACaseCenterPrefillResponse,
   HWMACaseCreateBody,
   HWMACaseDeviceType,
   HWMACaseItem,
@@ -223,6 +224,15 @@ const HWMAHome = () => {
     {},
   );
   const [createSubmitting, setCreateSubmitting] = useState(false);
+  const [prefillLoading, setPrefillLoading] = useState<{
+    caseCenter: boolean;
+    itcms: boolean;
+  }>({ caseCenter: false, itcms: false });
+  const [prefillErrors, setPrefillErrors] = useState<{
+    issued_no?: string;
+    device_name?: string;
+  }>({});
+  const [deviceWarrantyDate, setDeviceWarrantyDate] = useState('');
   const [resultAlert, setResultAlert] = useState<{
     isOpen: boolean;
     title: string;
@@ -365,6 +375,99 @@ const HWMAHome = () => {
         return next;
       });
     }
+    if (field === 'issued_no' || field === 'device_name') {
+      setPrefillErrors((prev) => ({ ...prev, [field]: undefined }));
+      if (field === 'device_name') {
+        setDeviceWarrantyDate('');
+      }
+    }
+  };
+
+  const applyCaseCenterToForm = (data: HWMACaseCenterPrefillResponse) => {
+    setCreateForm((prev) => ({
+      ...prev,
+      issued_no: data.issued_no ?? prev.issued_no,
+      issued_site: data.issued_site ?? prev.issued_site,
+      issued_site_phase: data.issued_site_phase ?? prev.issued_site_phase,
+      reporter_employee_id: data.reporter_employee_id ?? prev.reporter_employee_id,
+      reporter_nt_account: data.reporter_nt_account ?? prev.reporter_nt_account,
+      reporter_phone: data.reporter_phone ?? prev.reporter_phone,
+      reporter_organization_code: data.reporter_organization_code ?? prev.reporter_organization_code,
+      issue_description: data.issue_description ?? prev.issue_description,
+      device_name: data.device_info?.device_name ?? prev.device_name,
+      device_brand: data.device_info?.device_brand ?? prev.device_brand,
+      device_model: data.device_info?.device_model ?? prev.device_model,
+      device_sn: data.device_info?.device_sn ?? prev.device_sn,
+      device_owner: data.device_info?.device_owner ?? prev.device_owner,
+      device_type: data.device_info?.device_type ?? prev.device_type,
+    }));
+  };
+
+  const handlePrefillCaseCenter = async () => {
+    const caseid = createForm.issued_no.trim();
+    if (!caseid) {
+      setPrefillErrors((prev) => ({ ...prev, issued_no: '請先輸入 caseid（issued_no）' }));
+      return;
+    }
+    setPrefillLoading((prev) => ({ ...prev, caseCenter: true }));
+    setPrefillErrors((prev) => ({ ...prev, issued_no: undefined }));
+    try {
+      const data = await hardwareMaintenanceAPI.getCaseCenterPrefill(caseid);
+      applyCaseCenterToForm(data);
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        setPrefillErrors((prev) => ({ ...prev, issued_no: '查無資料' }));
+      } else if (axios.isAxiosError(error) && error.response?.status === 500) {
+        setResultAlert({
+          isOpen: true,
+          type: 'error',
+          title: '資料錯誤',
+          message: 'Case Center 資料取得失敗，請稍後再試或手動輸入。',
+        });
+      } else {
+        setPrefillErrors((prev) => ({ ...prev, issued_no: '資料錯誤' }));
+      }
+    } finally {
+      setPrefillLoading((prev) => ({ ...prev, caseCenter: false }));
+    }
+  };
+
+  const handlePrefillItcms = async () => {
+    const deviceName = createForm.device_name.trim();
+    if (!deviceName) {
+      setPrefillErrors((prev) => ({ ...prev, device_name: '請先輸入 device_name' }));
+      return;
+    }
+    setPrefillLoading((prev) => ({ ...prev, itcms: true }));
+    setPrefillErrors((prev) => ({ ...prev, device_name: undefined }));
+    try {
+      const data = await hardwareMaintenanceAPI.getItcmsDeviceInfo(deviceName);
+      setCreateForm((prev) => ({
+        ...prev,
+        device_name: data.device_name ?? prev.device_name,
+        device_brand: data.device_brand ?? prev.device_brand,
+        device_model: data.device_model ?? prev.device_model,
+        device_sn: data.device_sn ?? prev.device_sn,
+        device_owner: data.device_owner ?? prev.device_owner,
+        device_type: data.device_type ?? prev.device_type,
+      }));
+      setDeviceWarrantyDate(data.device_warranty_date ?? '');
+    } catch (error) {
+      if (axios.isAxiosError(error) && error.response?.status === 404) {
+        setPrefillErrors((prev) => ({ ...prev, device_name: '查無資料' }));
+      } else if (axios.isAxiosError(error) && error.response?.status === 500) {
+        setResultAlert({
+          isOpen: true,
+          type: 'error',
+          title: '資料錯誤',
+          message: 'ITCMS 設備資料取得失敗，請稍後再試或手動輸入。',
+        });
+      } else {
+        setPrefillErrors((prev) => ({ ...prev, device_name: '資料錯誤' }));
+      }
+    } finally {
+      setPrefillLoading((prev) => ({ ...prev, itcms: false }));
+    }
   };
 
   const validateCreateForm = (): boolean => {
@@ -393,6 +496,8 @@ const HWMAHome = () => {
       }
       setCreateForm(getEmptyCreateForm());
       setCreateFormErrors({});
+      setPrefillErrors({});
+      setDeviceWarrantyDate('');
       setIsModalOpen(false);
       const no = displayCaseCell(created.issued_no);
       const hid = displayCaseCell(created.hrt_id);
@@ -417,6 +522,8 @@ const HWMAHome = () => {
   const handleCancel = () => {
     setCreateForm(getEmptyCreateForm());
     setCreateFormErrors({});
+    setPrefillErrors({});
+    setDeviceWarrantyDate('');
     setIsModalOpen(false);
   };
 
@@ -763,13 +870,24 @@ const HWMAHome = () => {
 
               <div className={styles.formGroup}>
                 <label htmlFor="hwma-issued_no">issued_no</label>
-                <input
-                  id="hwma-issued_no"
-                  type="text"
-                  value={createForm.issued_no}
-                  onChange={(e) => handleCreateFieldChange('issued_no', e.target.value)}
-                  placeholder="選填"
-                />
+                <div className={styles.inputWithButton}>
+                  <input
+                    id="hwma-issued_no"
+                    type="text"
+                    value={createForm.issued_no}
+                    onChange={(e) => handleCreateFieldChange('issued_no', e.target.value)}
+                    placeholder="輸入 caseid（issued_no）"
+                  />
+                  <button
+                    type="button"
+                    className={styles.loadInfoButton}
+                    onClick={handlePrefillCaseCenter}
+                    disabled={prefillLoading.caseCenter}
+                  >
+                    {prefillLoading.caseCenter ? '讀取中…' : 'get case center data'}
+                  </button>
+                </div>
+                {prefillErrors.issued_no && <span className={styles.errorText}>{prefillErrors.issued_no}</span>}
               </div>
               <div className={styles.formGroup}>
                 <label htmlFor="hwma-issued_site">issued_site</label>
@@ -841,12 +959,26 @@ const HWMAHome = () => {
 
               <div className={styles.formGroup}>
                 <label htmlFor="hwma-device_name">device_name</label>
-                <input
-                  id="hwma-device_name"
-                  type="text"
-                  value={createForm.device_name}
-                  onChange={(e) => handleCreateFieldChange('device_name', e.target.value)}
-                />
+                <div className={styles.inputWithButton}>
+                  <input
+                    id="hwma-device_name"
+                    type="text"
+                    value={createForm.device_name}
+                    onChange={(e) => handleCreateFieldChange('device_name', e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className={styles.loadInfoButton}
+                    onClick={handlePrefillItcms}
+                    disabled={prefillLoading.itcms}
+                  >
+                    {prefillLoading.itcms ? '讀取中…' : 'get itcms data'}
+                  </button>
+                </div>
+                {prefillErrors.device_name && <span className={styles.errorText}>{prefillErrors.device_name}</span>}
+                {deviceWarrantyDate && (
+                  <span className={styles.helpText}>device_warranty_date：{deviceWarrantyDate}</span>
+                )}
               </div>
               <div className={styles.formGroup}>
                 <label htmlFor="hwma-device_brand">device_brand</label>
