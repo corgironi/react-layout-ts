@@ -816,7 +816,7 @@ export interface HWMARepairFlowStatus {
 export interface HWMARepairItem {
   detail_ticket_no: string;
   detail_issued_remark: string | null;
-  detail_issued_context: string | null;
+  detail_issued_context: unknown | null;
   current_status: string;
   current_process_nt: string;
   current_process_name: string;
@@ -864,6 +864,13 @@ export interface HWMARepairItemOption {
 
 export type HWMARepairItemsByCaseResponse = HWMARepairItemOption[];
 
+export type HWMAWarrantyTypeValue = 'IN_WARRANTY' | 'OUT_WARRANTY' | 'ONE_PRICE';
+
+export interface HWMAWarrantyTypeOption {
+  value: HWMAWarrantyTypeValue;
+  label: string;
+}
+
 /** PATCH /HWMA/transition/:repairId 請求 body */
 export interface HWMATransitionRequestBody {
   action_code: string;
@@ -878,7 +885,7 @@ export interface HWMAVendorTransitionRepairItem {
   device_model: string;
   count: number;
   remark?: string;
-  warranty_type?: HWMADeviceWarrantyHint;
+  warranty_type?: HWMAWarrantyTypeValue;
 }
 
 // 硬體維護 API
@@ -895,6 +902,33 @@ export const hardwareMaintenanceAPI = {
       return response.data;
     } catch (error) {
       console.error('取得 HWMA 維修子單管理資料失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /** POST /cases/:caseid/repqire/ — 以母單編號建立子單 */
+  createRepairByCaseId: async (caseid: string) => {
+    try {
+      const encoded = encodeURIComponent(caseid);
+      const response = await api.post(
+        `/cases/${encoded}/repqire/`,
+        {},
+        {
+          headers: {
+            'X-Time-Zone': HWMA_X_TIME_ZONE,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      console.error('建立子單失敗:', error);
       if (axios.isAxiosError(error)) {
         console.error('請求錯誤詳情:', {
           status: error.response?.status,
@@ -966,6 +1000,31 @@ export const hardwareMaintenanceAPI = {
       return Array.isArray(response.data?.items) ? response.data.items : [];
     } catch (error) {
       console.error('取得可維修品項失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /** GET /cases/:case_id/warranty_type — 依 case 取得可選保固類型（純陣列） */
+  getWarrantyTypeOptionsByCase: async (case_id: string | number) => {
+    try {
+      const encoded = encodeURIComponent(String(case_id));
+      const response = await api.get<HWMAWarrantyTypeOption[]>(
+        `/cases/${encoded}/warranty_type`,
+        {
+          headers: {
+            'X-Time-Zone': HWMA_X_TIME_ZONE,
+          },
+        },
+      );
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      console.error('取得保固類型選項失敗:', error);
       if (axios.isAxiosError(error)) {
         console.error('請求錯誤詳情:', {
           status: error.response?.status,

@@ -66,6 +66,8 @@ const HWMAREPAIREDBYCASE = () => {
   const caseid = searchParams.get('caseid')?.trim() ?? '';
 
   const [loading, setLoading] = useState(false);
+  const [createLoading, setCreateLoading] = useState(false);
+  const [createError, setCreateError] = useState('');
   const [error, setError] = useState('');
   const [data, setData] = useState<HWMARepairByCaseResponse | null>(null);
 
@@ -73,6 +75,7 @@ const HWMAREPAIREDBYCASE = () => {
     if (!caseid) return;
     setLoading(true);
     setError('');
+    setCreateError('');
     setData(null);
     try {
       const res = await hardwareMaintenanceAPI.getRepairedByIssuedNo(caseid);
@@ -94,6 +97,20 @@ const HWMAREPAIREDBYCASE = () => {
 
   const openDetail = (item: HWMARepairItem) => {
     navigate(`/hardware-maintenance/${encodeURIComponent(item.detail_ticket_no)}`);
+  };
+
+  const createSubTicket = async () => {
+    if (!caseid || createLoading) return;
+    setCreateLoading(true);
+    setCreateError('');
+    try {
+      await hardwareMaintenanceAPI.createRepairByCaseId(caseid);
+      await load();
+    } catch (e) {
+      setCreateError(parseApiError(e));
+    } finally {
+      setCreateLoading(false);
+    }
   };
 
   const issuedNoDisplay =
@@ -134,9 +151,22 @@ const HWMAREPAIREDBYCASE = () => {
           <div className={styles.summaryCard}>
             <div className={styles.summaryLabel}>子單總數</div>
             <div className={styles.summaryValue}>{data.total_count}</div>
+            <button
+              type="button"
+              className={styles.createSubBtn}
+              onClick={() => void createSubTicket()}
+              disabled={createLoading}
+            >
+              {createLoading ? '建立中…' : '新建子單'}
+            </button>
           </div>
         )}
       </div>
+      {createError && (
+        <div className={`${styles.stateBox} ${styles.stateError}`} role="alert">
+          {createError}
+        </div>
+      )}
 
       {loading && <div className={`${styles.stateBox} ${styles.stateLoading}`}>載入中…</div>}
       {!loading && error && (

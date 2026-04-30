@@ -10,6 +10,8 @@ import {
   HWMARepairAvailableAction,
   HWMARepairHistoryEntry,
   HWMARepairItem,
+  HWMAWarrantyTypeOption,
+  HWMAWarrantyTypeValue,
   HWMAVendorTransitionRepairItem,
 } from '../../api/api';
 
@@ -82,12 +84,18 @@ function historyElapsedSeconds(h: HWMARepairHistoryEntry): number | null {
 }
 
 function isVendorIssueSubmitAction(code: string): boolean {
-  return code.trim().toUpperCase() === 'VENDOR_ISSUE_SUBMIT';
+  const normalized = code.trim().toUpperCase();
+  return normalized === 'SUBMIT' || normalized === 'VENDOR_ISSUE_SUBMIT';
 }
 
 function isSetRequiredDateAction(code: string): boolean {
   const normalized = code.trim().toUpperCase();
-  return normalized === 'SET_REPQIRED_DATE' || normalized === 'SET_REQUIRED_DATE';
+  return (
+    normalized === 'SET_REPQIRED_DATE' ||
+    normalized === 'SET_REQUIRED_DATE' ||
+    normalized === 'SET_REPAIR_DATE' ||
+    normalized === 'SET_REPAIR'
+  );
 }
 
 function isVendorIssueStatus(status: string): boolean {
@@ -106,9 +114,25 @@ type VendorQuoteLine = {
   item_spec: string;
   device_model: string;
   count: number;
+  warranty_type: HWMAWarrantyTypeValue | '';
   remark: string;
   unit_price?: number | null;
   currency?: string | null;
+};
+
+type RepairIssuedContextItem = {
+  item_category?: string;
+  item_name?: string;
+  item_spec?: string;
+  device_model?: string;
+  count?: number | string;
+  warranty_type?: string;
+  remark?: string;
+};
+
+type RepairIssuedContext = {
+  repaired_issued_msg?: string;
+  repair_items?: RepairIssuedContextItem[];
 };
 
 function lineFromRepairItemOption(row: HWMARepairItemOption): VendorQuoteLine {
@@ -119,9 +143,24 @@ function lineFromRepairItemOption(row: HWMARepairItemOption): VendorQuoteLine {
     item_spec: row.item_spec,
     device_model: row.device_model,
     count: 1,
+    warranty_type: '',
     remark: '',
     unit_price: row.unit_price ?? null,
     currency: row.currency ?? null,
+  };
+}
+
+function toRepairIssuedContext(value: unknown): RepairIssuedContext | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  const obj = value as Record<string, unknown>;
+  const msg =
+    typeof obj.repaired_issued_msg === 'string' ? obj.repaired_issued_msg : undefined;
+  const items = Array.isArray(obj.repair_items)
+    ? (obj.repair_items as RepairIssuedContextItem[])
+    : undefined;
+  return {
+    repaired_issued_msg: msg,
+    repair_items: items,
   };
 }
 
@@ -202,6 +241,8 @@ const RepairFlow = () => {
   const [repairItemOptions, setRepairItemOptions] = useState<HWMARepairItemsByCaseResponse>([]);
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsError, setOptionsError] = useState('');
+  const [warrantyTypeOptions, setWarrantyTypeOptions] = useState<HWMAWarrantyTypeOption[]>([]);
+  const [warrantyTypeError, setWarrantyTypeError] = useState('');
 
   const load = useCallback(async () => {
     if (!rid?.trim()) {
@@ -234,14 +275,23 @@ const RepairFlow = () => {
     setOptionsLoading(true);
     setOptionsError('');
     setRepairItemOptions([]);
+    setWarrantyTypeOptions([]);
+    setWarrantyTypeError('');
     const caseId = data.parent_ticket?.issued_no?.trim() || String(data.hrt_id);
-    hardwareMaintenanceAPI
-      .getRepairItemsByCase(caseId)
-      .then((resp) => {
-        if (!cancelled) setRepairItemOptions(resp);
+    Promise.all([
+      hardwareMaintenanceAPI.getRepairItemsByCase(caseId),
+      hardwareMaintenanceAPI.getWarrantyTypeOptionsByCase(caseId),
+    ])
+      .then(([itemResp, warrantyResp]) => {
+        if (cancelled) return;
+        setRepairItemOptions(itemResp);
+        setWarrantyTypeOptions(warrantyResp);
       })
       .catch((e) => {
-        if (!cancelled) setOptionsError(parseApiError(e));
+        if (cancelled) return;
+        const msg = parseApiError(e);
+        setOptionsError(msg);
+        setWarrantyTypeError(msg);
       })
       .finally(() => {
         if (!cancelled) setOptionsLoading(false);
@@ -378,6 +428,7 @@ const RepairFlow = () => {
         device_model: line.device_model,
         count,
       };
+      if (line.warranty_type) base.warranty_type = line.warranty_type;
       if (line.remark.trim()) base.remark = line.remark.trim();
       return base;
     });
@@ -386,11 +437,10 @@ const RepairFlow = () => {
     setBannerError('');
     try {
       const updated = await hardwareMaintenanceAPI.patchTransition(data.detail_ticket_no, {
-        action_code: 'VENDOR_ISSUE_SUBMIT',
+        action_code: 'SUBMIT',
         context: {
+          repqir_items: repair_items,
           repaired_issued_msg: vendorMsg,
-          repair_items,
-          reapir_items: repair_items,
         },
       });
       setData(updated);
@@ -425,7 +475,10 @@ const RepairFlow = () => {
     setQuoteLines((prev) => prev.filter((l) => l.key !== key));
   };
 
-  const updateQuoteLine = (key: string, patch: Partial<Pick<VendorQuoteLine, 'count' | 'remark'>>) => {
+  const updateQuoteLine = (
+    key: string,
+    patch: Partial<Pick<VendorQuoteLine, 'count' | 'remark' | 'warranty_type'>>,
+  ) => {
     setQuoteLines((prev) =>
       prev.map((l) => (l.key === key ? { ...l, ...patch } : l)),
     );
@@ -465,6 +518,7 @@ const RepairFlow = () => {
 
   const pt = data.parent_ticket;
   const siteLine = [pt.issued_site, pt.issued_site_phase].filter(Boolean).join(' ') || '—';
+  const issuedContext = toRepairIssuedContext(data.detail_issued_context);
 
   return (
     <div className={styles.container}>
@@ -547,7 +601,7 @@ const RepairFlow = () => {
             <span className={styles.caseInfoValue}>{fmtDisplay(data.current_process_tel)}</span>
           </div>
         </div>
-        {(data.detail_issued_remark || data.detail_issued_context) && (
+        {(Boolean(data.detail_issued_remark) || data.detail_issued_context != null) && (
           <div className={styles.subTicketNote}>
             {data.detail_issued_remark && (
               <p>
@@ -555,12 +609,58 @@ const RepairFlow = () => {
                 <span className={styles.caseInfoValue}>{data.detail_issued_remark}</span>
               </p>
             )}
-            {data.detail_issued_context && (
-              <p>
-                <span className={styles.caseInfoLabel}>子單內文</span>{' '}
-                <span className={styles.caseInfoValue}>{data.detail_issued_context}</span>
-              </p>
-            )}
+            <div className={styles.contextWrap}>
+              <span className={styles.caseInfoLabel}>子單內文</span>
+              {data.detail_issued_context == null ? (
+                <span className={styles.caseInfoValue}>-</span>
+              ) : typeof data.detail_issued_context === 'string' ? (
+                <span className={styles.caseInfoValue}>{data.detail_issued_context || '-'}</span>
+              ) : issuedContext ? (
+                <div className={styles.contextObjBlock}>
+                  <p className={styles.contextMsgRow}>
+                    <span className={styles.contextMsgLabel}>repaired_issued_msg：</span>
+                    <span className={styles.caseInfoValue}>
+                      {issuedContext.repaired_issued_msg?.trim() || '-'}
+                    </span>
+                  </p>
+                  <div className={styles.contextItemsWrap}>
+                    <div className={styles.contextItemsTitle}>repair_items</div>
+                    {Array.isArray(issuedContext.repair_items) && issuedContext.repair_items.length > 0 ? (
+                      <table className={styles.contextTable}>
+                        <thead>
+                          <tr>
+                            <th>item_category</th>
+                            <th>item_name</th>
+                            <th>item_spec</th>
+                            <th>device_model</th>
+                            <th>count</th>
+                            <th>warranty_type</th>
+                            <th>remark</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {issuedContext.repair_items.map((it, idx) => (
+                            <tr key={`ctx-item-${idx}`}>
+                              <td>{it?.item_category ?? '-'}</td>
+                              <td>{it?.item_name ?? '-'}</td>
+                              <td>{it?.item_spec ?? '-'}</td>
+                              <td>{it?.device_model ?? '-'}</td>
+                              <td>{it?.count ?? '-'}</td>
+                              <td>{it?.warranty_type ?? '-'}</td>
+                              <td>{it?.remark ?? '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <span className={styles.caseInfoValue}>-</span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <span className={styles.caseInfoValue}>-</span>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -607,23 +707,13 @@ const RepairFlow = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="vendor-modal-title" className={styles.modalTitle}>
-              廠商報價／料件送出（VENDOR_ISSUE_SUBMIT）
+              廠商判定維修項目（SUBMIT）
             </h3>
-            <label className={styles.modalLabel} htmlFor="vendor-msg">
-              報價說明（repaired_issued_msg，可空白）
-            </label>
-            <textarea
-              id="vendor-msg"
-              className={styles.modalTextarea}
-              rows={3}
-              value={vendorMsg}
-              onChange={(e) => setVendorMsg(e.target.value)}
-              disabled={actionBusy}
-            />
 
             <h4 className={styles.modalSubTitle}>可維修品項（GET /cases/:case_id/reqpir-items）</h4>
             {optionsLoading && <p className={styles.modalMuted}>載入可維修品項中…</p>}
             {optionsError && <p className={styles.modalError}>{optionsError}</p>}
+            {warrantyTypeError && !optionsError && <p className={styles.modalError}>{warrantyTypeError}</p>}
             {!optionsLoading && !optionsError && (
               <>
                 <div className={styles.modelInfoCard}>
@@ -671,6 +761,7 @@ const RepairFlow = () => {
                       <th>規格</th>
                       <th>機型</th>
                       <th>單價</th>
+                      <th>保固判定</th>
                       <th>數量</th>
                       <th>備註</th>
                       <th />
@@ -687,6 +778,25 @@ const RepairFlow = () => {
                           {typeof line.unit_price === 'number'
                             ? `${line.currency ?? 'NT$'} ${line.unit_price}`
                             : '時價'}
+                        </td>
+                        <td>
+                          <select
+                            className={styles.modalSelect}
+                            value={line.warranty_type}
+                            disabled={actionBusy}
+                            onChange={(e) =>
+                              updateQuoteLine(line.key, {
+                                warranty_type: (e.target.value as HWMAWarrantyTypeValue | '') || '',
+                              })
+                            }
+                          >
+                            <option value="">請選擇</option>
+                            {warrantyTypeOptions.map((opt) => (
+                              <option key={opt.value} value={opt.value}>
+                                {opt.label}
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td>
                           <input
@@ -728,6 +838,19 @@ const RepairFlow = () => {
               </div>
             )}
 
+            <label className={styles.modalLabel} htmlFor="vendor-msg">
+              廠商判斷項目（repaired_issued_msg）
+            </label>
+            <textarea
+              id="vendor-msg"
+              className={styles.modalTextarea}
+              rows={3}
+              value={vendorMsg}
+              onChange={(e) => setVendorMsg(e.target.value)}
+              disabled={actionBusy}
+              placeholder="請輸入廠商判斷項目說明"
+            />
+
             <div className={styles.modalActions}>
               <button
                 type="button"
@@ -743,7 +866,7 @@ const RepairFlow = () => {
                 disabled={actionBusy || quoteLines.length < 1}
                 onClick={() => void submitVendorQuote()}
               >
-                {actionBusy ? '送出中…' : '送出 VENDOR_ISSUE_SUBMIT'}
+                {actionBusy ? '送出中…' : '送出 SUBMIT → 進入下個節點'}
               </button>
             </div>
           </div>
@@ -766,7 +889,7 @@ const RepairFlow = () => {
             onClick={(e) => e.stopPropagation()}
           >
             <h3 id="required-date-modal-title" className={styles.modalTitle}>
-              設定到料日期（SET_REPQIRED_DATE）
+              設定預計完修日期
             </h3>
             <label htmlFor="required-date-input" className={styles.modalLabel}>
               到料日期

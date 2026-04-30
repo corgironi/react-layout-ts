@@ -90,6 +90,24 @@
   color: var(--primary);
 }
 
+.createSubBtn {
+  margin-top: 0.65rem;
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #fff;
+  background: var(--primary-gradient);
+}
+
+.createSubBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .parentCard {
   background: var(--card-bg);
   border: 1px solid var(--border);
