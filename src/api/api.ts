@@ -1329,4 +1329,141 @@ export const hardwareMaintenanceAPI = {
   },
 };
 
+function normalizeReqPirList<T>(raw: unknown): T[] {
+  if (Array.isArray(raw)) return raw as T[];
+  if (raw && typeof raw === 'object') {
+    const o = raw as Record<string, unknown>;
+    if (Array.isArray(o.items)) return o.items as T[];
+    if (Array.isArray(o.data)) return o.data as T[];
+  }
+  return [];
+}
+
+const reqpirAdminJsonHeaders = {
+  'X-Time-Zone': HWMA_X_TIME_ZONE,
+  'Content-Type': 'application/json',
+} as const;
+
+const reqpirAdminReadHeaders = {
+  'X-Time-Zone': HWMA_X_TIME_ZONE,
+} as const;
+
+/** GET/POST/PATCH/DELETE /reqpir/items — 品目錄（reqpireditem.json） */
+export interface ReqPirItem {
+  hri_id: number | string;
+  item_category: string;
+  item_name: string;
+  item_type: string;
+  device_model?: string | null;
+  is_active?: boolean;
+}
+
+export interface ReqPirItemCreateBody {
+  item_category: string;
+  item_name: string;
+  item_type: string;
+  device_model?: string;
+  is_active?: boolean;
+}
+
+/** GET/POST/PATCH/DELETE /reqpir/contracts — 合約價（reqpir_contract.json） */
+export interface ReqPirContract {
+  hrc_id: number | string;
+  hri_id: number | string;
+  hrr_id?: number | string | null;
+  hrrid?: number | string | null;
+  currency: string;
+  device_model: string;
+  price: number;
+  start_date: string;
+  is_active?: boolean;
+}
+
+export interface ReqPirContractCreateBody {
+  hrr_id?: number | string;
+  hrrid?: number | string;
+  hri_id: number | string;
+  currency: string;
+  device_model: string;
+  price: number;
+  start_date: string;
+  is_active?: boolean;
+}
+
+export const reqpirAdminAPI = {
+  listItems: async (): Promise<ReqPirItem[]> => {
+    try {
+      const response = await api.get<unknown>('/reqpir/items', { headers: reqpirAdminReadHeaders });
+      return normalizeReqPirList<ReqPirItem>(response.data);
+    } catch (error) {
+      console.error('取得品目錄失敗:', error);
+      throw error;
+    }
+  },
+
+  getItem: async (hri_id: string | number): Promise<ReqPirItem> => {
+    const encoded = encodeURIComponent(String(hri_id));
+    const response = await api.get<ReqPirItem>(`/reqpir/items/${encoded}`, { headers: reqpirAdminReadHeaders });
+    return response.data;
+  },
+
+  createItem: async (body: ReqPirItemCreateBody): Promise<ReqPirItem> => {
+    const response = await api.post<ReqPirItem>('/reqpir/items', body, { headers: reqpirAdminJsonHeaders });
+    return response.data;
+  },
+
+  patchItem: async (hri_id: string | number, body: Partial<ReqPirItemCreateBody>): Promise<ReqPirItem> => {
+    const encoded = encodeURIComponent(String(hri_id));
+    const response = await api.patch<ReqPirItem>(`/reqpir/items/${encoded}`, body, { headers: reqpirAdminJsonHeaders });
+    return response.data;
+  },
+
+  deleteItem: async (hri_id: string | number): Promise<void> => {
+    const encoded = encodeURIComponent(String(hri_id));
+    await api.delete(`/reqpir/items/${encoded}`, { headers: reqpirAdminReadHeaders });
+  },
+
+  listContracts: async (params?: { hri_id?: string | number; hrr_id?: string | number }): Promise<ReqPirContract[]> => {
+    try {
+      const response = await api.get<unknown>('/reqpir/contracts', {
+        params,
+        headers: reqpirAdminReadHeaders,
+      });
+      return normalizeReqPirList<ReqPirContract>(response.data);
+    } catch (error) {
+      console.error('取得合約價列表失敗:', error);
+      throw error;
+    }
+  },
+
+  getContract: async (hrc_id: string | number): Promise<ReqPirContract> => {
+    const encoded = encodeURIComponent(String(hrc_id));
+    const response = await api.get<ReqPirContract>(`/reqpir/contracts/${encoded}`, {
+      headers: reqpirAdminReadHeaders,
+    });
+    return response.data;
+  },
+
+  createContract: async (body: ReqPirContractCreateBody): Promise<ReqPirContract> => {
+    const response = await api.post<ReqPirContract>('/reqpir/contracts', body, { headers: reqpirAdminJsonHeaders });
+    return response.data;
+  },
+
+  patchContract: async (
+    hrc_id: string | number,
+    body: Partial<ReqPirContractCreateBody>,
+  ): Promise<ReqPirContract> => {
+    const encoded = encodeURIComponent(String(hrc_id));
+    const response = await api.patch<ReqPirContract>(`/reqpir/contracts/${encoded}`, body, {
+      headers: reqpirAdminJsonHeaders,
+    });
+    return response.data;
+  },
+
+  deleteContract: async (hrc_id: string | number): Promise<void> => {
+    const encoded = encodeURIComponent(String(hrc_id));
+    await api.delete(`/reqpir/contracts/${encoded}`, { headers: reqpirAdminReadHeaders });
+  },
+};
+
 export default api; 

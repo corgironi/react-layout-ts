@@ -1,0 +1,129 @@
+.pageHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1.25rem;
+}
+
+.titleBlock h1 {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.subtitle {
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  max-width: 52rem;
+  line-height: 1.5;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.tab {
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.tab:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.tabActive {
+  border-color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.08);
+  color: var(--primary);
+}
+
+.toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.filterGroup label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.filterGroup input {
+  min-width: 10rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+}
+
+.rowActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.btnSm {
+  padding: 0.25rem 0.55rem;
+  font-size: 0.75rem;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--card-bg);
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.btnSm:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.btnSm:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btnDanger {
+  border-color: rgba(var(--danger-rgb), 0.45);
+  color: var(--danger);
+}
+
+.btnDanger:hover:not(:disabled) {
+  background: rgba(var(--danger-rgb), 0.08);
+}
+
+.mono {
+  font-family: ui-monospace, monospace;
+  font-size: 0.8125rem;
+}
+
+.modalBody {
+  padding: 1rem 1.5rem 1.5rem;
+  overflow-y: auto;
+  max-height: calc(90vh - 5rem);
+}

@@ -41,8 +41,14 @@ const Sidebar = ({ collapsed, onCollapse }: SidebarProps) => {
           </div>
           <div className={styles.navGroup}>
             <div className={styles.navTitle}>維修管理</div>
-            <div 
-              className={`${styles.navItem} ${location.pathname.startsWith('/hardware-maintenance') ? styles.active : ''}`}
+            <div
+              className={`${styles.navItem} ${
+                location.pathname === '/hardware-maintenance' ||
+                (location.pathname.startsWith('/hardware-maintenance/') &&
+                  location.pathname !== '/hardware-maintenance/pricebook-mgt')
+                  ? styles.active
+                  : ''
+              }`}
               onClick={() => navigate('/hardware-maintenance')}
             >
               <i className="fas fa-file-alt"></i>
@@ -52,7 +58,12 @@ const Sidebar = ({ collapsed, onCollapse }: SidebarProps) => {
               <i className="fas fa-search"></i>
               <span>維修單管理</span>
             </div>
-            <div className={styles.navItem}>
+            <div
+              className={`${styles.navItem} ${
+                location.pathname === '/hardware-maintenance/pricebook-mgt' ? styles.active : ''
+              }`}
+              onClick={() => navigate('/hardware-maintenance/pricebook-mgt')}
+            >
               <i className="fas fa-book-open"></i>
               <span>價格手冊</span>
             </div>

@@ -8,6 +8,7 @@ import Overtime from '../pages/attendance/Overtime';
 import Summary from '../pages/attendance/Summary';
 import HardwareMaintenanceEntry from '../pages/HardwareMaintenance/HardwareMaintenanceEntry';
 import RepairFlow from '../pages/HardwareMaintenance/RepairFlow';
+import PricebookMGT from '../pages/HardwareMaintenance/PricebookMGT';
 import SystemPage from '../pages/system/SystemPage';
 import CreateLocalUser from '../pages/system/CreateLocalUser';
 import UserMaintenance from '../pages/system/UserMaintenance';
@@ -47,6 +48,10 @@ export const router = createBrowserRouter([
             element: <Summary />
           }
         ]
+      },
+      {
+        path: 'hardware-maintenance/pricebook-mgt',
+        element: <PricebookMGT />
       },
       {
         path: 'hardware-maintenance/:rid',
