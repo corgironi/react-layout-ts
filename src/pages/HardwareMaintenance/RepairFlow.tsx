@@ -244,6 +244,15 @@ const RepairFlow = () => {
   const [warrantyTypeOptions, setWarrantyTypeOptions] = useState<HWMAWarrantyTypeOption[]>([]);
   const [warrantyTypeError, setWarrantyTypeError] = useState('');
 
+  const [bannerSuccess, setBannerSuccess] = useState('');
+  const [utilityBusy, setUtilityBusy] = useState(false);
+  const [commentModalOpen, setCommentModalOpen] = useState(false);
+  const [commentDraft, setCommentDraft] = useState('');
+  const [commentModalError, setCommentModalError] = useState('');
+  const [proxyModalOpen, setProxyModalOpen] = useState(false);
+  const [proxyDraft, setProxyDraft] = useState('');
+  const [proxyModalError, setProxyModalError] = useState('');
+
   const load = useCallback(async () => {
     if (!rid?.trim()) {
       setLoading(false);
@@ -254,6 +263,7 @@ const RepairFlow = () => {
     setLoading(true);
     setError('');
     setBannerError('');
+    setBannerSuccess('');
     setData(null);
     try {
       const res = await hardwareMaintenanceAPI.getRepairedByRid(rid);
@@ -262,6 +272,17 @@ const RepairFlow = () => {
       setError(parseApiError(e));
     } finally {
       setLoading(false);
+    }
+  }, [rid]);
+
+  /** 不切換全頁 loading、不清空畫面；用於 PATCH 成功後補齊與 GET 一致的流程／history */
+  const refetchRepairItem = useCallback(async () => {
+    if (!rid?.trim()) return;
+    try {
+      const res = await hardwareMaintenanceAPI.getRepairedByRid(rid);
+      setData(res);
+    } catch (e) {
+      setBannerError(parseApiError(e));
     }
   }, [rid]);
 
@@ -378,12 +399,14 @@ const RepairFlow = () => {
       transitionLockRef.current = true;
       setActionBusy(true);
       setBannerError('');
+      setBannerSuccess('');
       try {
         const updated = await hardwareMaintenanceAPI.patchTransition(data.detail_ticket_no, {
           action_code: action.action_code,
           context,
         });
         setData(updated);
+        await refetchRepairItem();
       } catch (e) {
         setBannerError(parseApiError(e));
       } finally {
@@ -391,7 +414,7 @@ const RepairFlow = () => {
         setActionBusy(false);
       }
     },
-    [data?.detail_ticket_no],
+    [data?.detail_ticket_no, refetchRepairItem],
   );
 
   const handleAction = useCallback(
@@ -435,6 +458,7 @@ const RepairFlow = () => {
     transitionLockRef.current = true;
     setActionBusy(true);
     setBannerError('');
+    setBannerSuccess('');
     try {
       const updated = await hardwareMaintenanceAPI.patchTransition(data.detail_ticket_no, {
         action_code: 'SUBMIT',
@@ -444,6 +468,7 @@ const RepairFlow = () => {
         },
       });
       setData(updated);
+      await refetchRepairItem();
       setVendorModalOpen(false);
       setQuoteLines([]);
       setVendorMsg('');
@@ -453,7 +478,7 @@ const RepairFlow = () => {
       transitionLockRef.current = false;
       setActionBusy(false);
     }
-  }, [data, quoteLines, vendorMsg]);
+  }, [data, quoteLines, vendorMsg, refetchRepairItem]);
 
   const submitRequiredDate = useCallback(async () => {
     if (!data || !setRequiredDateAction || transitionLockRef.current) return;
@@ -466,6 +491,52 @@ const RepairFlow = () => {
     });
     setRequiredDateModalOpen(false);
   }, [data, requiredDate, runTransition, setRequiredDateAction]);
+
+  const submitRepairComment = useCallback(async () => {
+    if (!data?.detail_ticket_no) return;
+    const text = commentDraft.trim();
+    if (!text) {
+      setCommentModalError('請輸入備註內容');
+      return;
+    }
+    setUtilityBusy(true);
+    setCommentModalError('');
+    setBannerError('');
+    try {
+      const res = await hardwareMaintenanceAPI.postRepairComment(data.detail_ticket_no, { comment: text });
+      setCommentModalOpen(false);
+      setCommentDraft('');
+      const when = formatDateTime(res.created_at) ?? res.created_at;
+      setBannerSuccess(`備註已送出（${when}）。目前無 GET 可查歷史留言。`);
+    } catch (e) {
+      setCommentModalError(parseApiError(e));
+    } finally {
+      setUtilityBusy(false);
+    }
+  }, [data?.detail_ticket_no, commentDraft]);
+
+  const submitRepairProxy = useCallback(async () => {
+    if (!data?.detail_ticket_no) return;
+    const name = proxyDraft.trim();
+    if (!name) {
+      setProxyModalError('請輸入代領人姓名或識別');
+      return;
+    }
+    setUtilityBusy(true);
+    setProxyModalError('');
+    setBannerError('');
+    try {
+      const res = await hardwareMaintenanceAPI.postRepairProxy(data.detail_ticket_no, { proxy: name });
+      setProxyModalOpen(false);
+      setProxyDraft('');
+      const when = formatDateTime(res.updated_at) ?? res.updated_at;
+      setBannerSuccess(`代領人已設為「${res.proxy}」（${when}）。`);
+    } catch (e) {
+      setProxyModalError(parseApiError(e));
+    } finally {
+      setUtilityBusy(false);
+    }
+  }, [data?.detail_ticket_no, proxyDraft]);
 
   const addRepairItemOptionRow = (row: HWMARepairItemOption) => {
     setQuoteLines((prev) => [...prev, lineFromRepairItemOption(row)]);
@@ -530,6 +601,14 @@ const RepairFlow = () => {
           </button>
         </div>
       )}
+      {bannerSuccess && (
+        <div className={styles.bannerSuccess} role="status">
+          <span>{bannerSuccess}</span>
+          <button type="button" className={styles.bannerSuccessDismiss} onClick={() => setBannerSuccess('')}>
+            關閉
+          </button>
+        </div>
+      )}
 
       <div className={styles.pageHeader}>
         <div className={styles.headerLeft}>
@@ -540,22 +619,46 @@ const RepairFlow = () => {
           <h1 className={styles.pageTitle}>維修單管理</h1>
         </div>
         <div className={styles.headerRightCluster}>
-          {specialActions.length > 0 && (
-            <div className={styles.headerSpecialActions}>
-              {specialActions.map((a) => (
-                <button
-                  key={a.action_code}
-                  type="button"
-                  className={styles.specialActionBtn}
-                  title={a.to_state_code ? `→ ${a.to_state_code}` : undefined}
-                  disabled={actionBusy}
-                  onClick={() => handleAction(a)}
-                >
-                  {a.action_name}
-                </button>
-              ))}
-            </div>
-          )}
+          <div className={styles.headerSpecialActions}>
+            <button
+              type="button"
+              className={styles.specialActionBtn}
+              title="POST /cases/repairs/:RID/comment"
+              disabled={actionBusy || utilityBusy}
+              onClick={() => {
+                setCommentDraft('');
+                setCommentModalError('');
+                setCommentModalOpen(true);
+              }}
+            >
+              新增子單備註
+            </button>
+            <button
+              type="button"
+              className={styles.specialActionBtn}
+              title="POST /cases/reqpir/:RID/proxy"
+              disabled={actionBusy || utilityBusy}
+              onClick={() => {
+                setProxyDraft('');
+                setProxyModalError('');
+                setProxyModalOpen(true);
+              }}
+            >
+              設定代領人
+            </button>
+            {specialActions.map((a) => (
+              <button
+                key={a.action_code}
+                type="button"
+                className={styles.specialActionBtn}
+                title={a.to_state_code ? `→ ${a.to_state_code}` : undefined}
+                disabled={actionBusy || utilityBusy}
+                onClick={() => handleAction(a)}
+              >
+                {a.action_name}
+              </button>
+            ))}
+          </div>
           <div className={styles.ridBlock}>
             <span className={styles.ridLabel}>RID</span>
             <span className={styles.ridValue}>{data.detail_ticket_no}</span>
@@ -675,7 +778,7 @@ const RepairFlow = () => {
                 a.is_default ? styles.actionBtnPrimary : styles.actionBtnSecondary
               }`}
               title={a.to_state_code ? `→ ${a.to_state_code}` : undefined}
-              disabled={actionBusy}
+              disabled={actionBusy || utilityBusy}
               onClick={() => handleAction(a)}
             >
               <span>{actionBusy ? '處理中…' : a.action_name}</span>
@@ -918,6 +1021,118 @@ const RepairFlow = () => {
                 onClick={() => void submitRequiredDate()}
               >
                 {actionBusy ? '送出中…' : '送出日期'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {commentModalOpen && (
+        <div
+          className={styles.modalBackdrop}
+          onClick={() => {
+            if (!utilityBusy) setCommentModalOpen(false);
+          }}
+          role="presentation"
+        >
+          <div
+            className={styles.modalDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="repair-comment-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="repair-comment-modal-title" className={styles.modalTitle}>
+              新增子單備註
+            </h3>
+            <p className={styles.modalMuted}>
+              寫入後端留言檔，不修改子單主檔。目前無 GET 可查歷史留言；若需顯示請後端併入子單 API。
+            </p>
+            {commentModalError && <p className={styles.modalError}>{commentModalError}</p>}
+            <label className={styles.modalLabel} htmlFor="repair-comment-input">
+              備註內容（comment）
+            </label>
+            <textarea
+              id="repair-comment-input"
+              className={styles.modalTextarea}
+              rows={4}
+              value={commentDraft}
+              onChange={(e) => setCommentDraft(e.target.value)}
+              disabled={utilityBusy}
+              placeholder="例：現場已收機"
+            />
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${styles.actionBtnSecondary}`}
+                disabled={utilityBusy}
+                onClick={() => !utilityBusy && setCommentModalOpen(false)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
+                disabled={utilityBusy || !commentDraft.trim()}
+                onClick={() => void submitRepairComment()}
+              >
+                {utilityBusy ? '送出中…' : '送出備註'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {proxyModalOpen && (
+        <div
+          className={styles.modalBackdrop}
+          onClick={() => {
+            if (!utilityBusy) setProxyModalOpen(false);
+          }}
+          role="presentation"
+        >
+          <div
+            className={styles.modalDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="repair-proxy-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="repair-proxy-modal-title" className={styles.modalTitle}>
+              設定設備代領人
+            </h3>
+            <p className={styles.modalMuted}>
+              路徑為 <code>/cases/reqpir/</code>（專案保留拼字）。同一子單再次送出會覆寫代領人與時間。
+            </p>
+            {proxyModalError && <p className={styles.modalError}>{proxyModalError}</p>}
+            <label className={styles.modalLabel} htmlFor="repair-proxy-input">
+              代領人（proxy）
+            </label>
+            <input
+              id="repair-proxy-input"
+              type="text"
+              className={styles.modalInput}
+              value={proxyDraft}
+              onChange={(e) => setProxyDraft(e.target.value)}
+              disabled={utilityBusy}
+              placeholder="例：王小明"
+            />
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${styles.actionBtnSecondary}`}
+                disabled={utilityBusy}
+                onClick={() => !utilityBusy && setProxyModalOpen(false)}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
+                disabled={utilityBusy || !proxyDraft.trim()}
+                onClick={() => void submitRepairProxy()}
+              >
+                {utilityBusy ? '送出中…' : '確認設定'}
               </button>
             </div>
           </div>

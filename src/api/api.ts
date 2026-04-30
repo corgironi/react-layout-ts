@@ -665,10 +665,25 @@ export interface HWMACaseListParams {
 export type HWMACaseServiceType = 'PC' | 'Parts' | 'Monitor';
 export type HWMACaseDeviceType = 'SNB' | 'SPC';
 
+/** GET /cases/service/site — key／value 對照；value 可能為字串 "null"（如 All） */
+export type HWMACaseServiceSiteMap = Record<string, string>;
+
+/** GET /cases/service/type — 單筆條目 */
+export interface HWMACaseServiceTypeBundleEntry {
+  device_brand: string;
+  device_model?: string;
+}
+
+/** GET /cases/service/type — 固定 pc / monitor / parts 三 key */
+export interface HWMACaseServiceTypeBundleResponse {
+  pc: HWMACaseServiceTypeBundleEntry[];
+  monitor: HWMACaseServiceTypeBundleEntry[];
+  parts: HWMACaseServiceTypeBundleEntry[];
+}
+
 /** POST /HWMA/case 請求 body（勿送 hrt_id、case_created_at 等由後端產生之欄位） */
 export interface HWMACaseCreateBody {
   service_type: HWMACaseServiceType;
-  device_type: HWMACaseDeviceType;
   issued_no?: string;
   issued_site?: string;
   issued_site_phase?: string;
@@ -684,6 +699,8 @@ export interface HWMACaseCreateBody {
   device_owner?: string;
   borrow_device_name?: string;
   created_by_nt_account?: string;
+  /** 保固／保固到期等日期，建議 YYYY-MM-DD */
+  warranty_date?: string;
 }
 
 /** GET /:caseid/case-center_data 回傳 */
@@ -888,6 +905,20 @@ export interface HWMAVendorTransitionRepairItem {
   warranty_type?: HWMAWarrantyTypeValue;
 }
 
+/** POST /cases/repairs/:detail_ticket_no/comment 成功 201 */
+export interface HWMARepairCommentResponse {
+  detail_ticket_no: string;
+  comment: string;
+  created_at: string;
+}
+
+/** POST /cases/reqpir/:detail_ticket_no/proxy 成功 200（路徑為 reqpir） */
+export interface HWMARepairProxyResponse {
+  detail_ticket_no: string;
+  proxy: string;
+  updated_at: string;
+}
+
 // 硬體維護 API
 export const hardwareMaintenanceAPI = {
   /** GET /HWMA/repaired?issued_no= — 子單管理（每筆含 parent_ticket、flow_status） */
@@ -1010,6 +1041,66 @@ export const hardwareMaintenanceAPI = {
     }
   },
 
+  /** POST /cases/repairs/:detail_ticket_no/comment — 子單追加備註（不修改子單主檔） */
+  postRepairComment: async (
+    detail_ticket_no: string,
+    body: { comment?: string; text?: string },
+  ): Promise<HWMARepairCommentResponse> => {
+    try {
+      const encoded = encodeURIComponent(detail_ticket_no);
+      const response = await api.post<HWMARepairCommentResponse>(
+        `/cases/repairs/${encoded}/comment`,
+        body,
+        {
+          headers: {
+            'X-Time-Zone': HWMA_X_TIME_ZONE,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      console.error('新增子單備註失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /** POST /cases/reqpir/:detail_ticket_no/proxy — 設定／覆寫設備代領人 */
+  postRepairProxy: async (
+    detail_ticket_no: string,
+    body: { proxy?: string; proxy_name?: string },
+  ): Promise<HWMARepairProxyResponse> => {
+    try {
+      const encoded = encodeURIComponent(detail_ticket_no);
+      const response = await api.post<HWMARepairProxyResponse>(
+        `/cases/reqpir/${encoded}/proxy`,
+        body,
+        {
+          headers: {
+            'X-Time-Zone': HWMA_X_TIME_ZONE,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+      return response.data;
+    } catch (error) {
+      console.error('設定代領人失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
   /** GET /cases/:case_id/warranty_type — 依 case 取得可選保固類型（純陣列） */
   getWarrantyTypeOptionsByCase: async (case_id: string | number) => {
     try {
@@ -1025,6 +1116,83 @@ export const hardwareMaintenanceAPI = {
       return Array.isArray(response.data) ? response.data : [];
     } catch (error) {
       console.error('取得保固類型選項失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /** GET /cases/service/site — 站點對照（JSON 物件，非陣列） */
+  getCaseServiceSites: async (): Promise<HWMACaseServiceSiteMap> => {
+    try {
+      const response = await api.get<unknown>('/cases/service/site', {
+        headers: {
+          'X-Time-Zone': HWMA_X_TIME_ZONE,
+        },
+      });
+      const data = response.data;
+      if (data == null || typeof data !== 'object' || Array.isArray(data)) {
+        return {};
+      }
+      const out: HWMACaseServiceSiteMap = {};
+      for (const [k, v] of Object.entries(data as Record<string, unknown>)) {
+        if (typeof v === 'string') {
+          out[k] = v;
+        } else if (typeof v === 'number' || typeof v === 'boolean') {
+          out[k] = String(v);
+        } else if (v === null) {
+          out[k] = 'null';
+        }
+      }
+      return out;
+    } catch (error) {
+      console.error('取得站點對照失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /** GET /cases/service/type — pc / monitor / parts 品牌與可選型號 */
+  getCaseServiceTypeBundle: async (): Promise<HWMACaseServiceTypeBundleResponse> => {
+    const normalizeEntry = (raw: unknown): HWMACaseServiceTypeBundleEntry | null => {
+      if (raw == null || typeof raw !== 'object' || Array.isArray(raw)) return null;
+      const o = raw as Record<string, unknown>;
+      const brand = o.device_brand;
+      if (typeof brand !== 'string' || brand.trim() === '') return null;
+      const entry: HWMACaseServiceTypeBundleEntry = { device_brand: brand.trim() };
+      const model = o.device_model;
+      if (typeof model === 'string' && model.trim() !== '') {
+        entry.device_model = model.trim();
+      }
+      return entry;
+    };
+    const normalizeList = (list: unknown): HWMACaseServiceTypeBundleEntry[] => {
+      if (!Array.isArray(list)) return [];
+      return list.map(normalizeEntry).filter((x): x is HWMACaseServiceTypeBundleEntry => x != null);
+    };
+    try {
+      const response = await api.get<Partial<HWMACaseServiceTypeBundleResponse>>('/cases/service/type', {
+        headers: {
+          'X-Time-Zone': HWMA_X_TIME_ZONE,
+        },
+      });
+      const d = response.data ?? {};
+      return {
+        pc: normalizeList(d.pc),
+        monitor: normalizeList(d.monitor),
+        parts: normalizeList(d.parts),
+      };
+    } catch (error) {
+      console.error('取得服務類型／品牌／型號清單失敗:', error);
       if (axios.isAxiosError(error)) {
         console.error('請求錯誤詳情:', {
           status: error.response?.status,

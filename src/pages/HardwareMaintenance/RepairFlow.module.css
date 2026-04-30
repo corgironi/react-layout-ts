@@ -17,6 +17,29 @@
   font-size: 0.875rem;
 }
 
+.bannerSuccess {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 8px;
+  background: rgba(var(--success-rgb), 0.12);
+  color: var(--success);
+  font-size: 0.875rem;
+}
+
+.bannerSuccessDismiss {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  color: var(--success);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
 .bannerDismiss {
   flex-shrink: 0;
   border: none;

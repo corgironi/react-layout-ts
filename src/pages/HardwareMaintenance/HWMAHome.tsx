@@ -11,10 +11,11 @@ import {
   HWMADashboardKPI,
   HWMACaseCenterPrefillResponse,
   HWMACaseCreateBody,
-  HWMACaseDeviceType,
   HWMACaseItem,
   HWMACaseListParams,
+  HWMACaseServiceSiteMap,
   HWMACaseServiceType,
+  HWMACaseServiceTypeBundleResponse,
 } from '../../api/api';
 
 type IssuedStatusToken = 'null' | 'Progress' | 'Closed';
@@ -33,7 +34,6 @@ const HWMA_CASE_LIST_FETCH_CHUNK = 300;
 
 type HwmaCreateFormState = {
   service_type: '' | HWMACaseServiceType;
-  device_type: '' | HWMACaseDeviceType;
   issued_no: string;
   issued_site: string;
   issued_site_phase: string;
@@ -49,11 +49,12 @@ type HwmaCreateFormState = {
   device_owner: string;
   borrow_device_name: string;
   created_by_nt_account: string;
+  /** YYYY-MM-DD，對應送出欄位 warranty_date */
+  warranty_date: string;
 };
 
 const getEmptyCreateForm = (): HwmaCreateFormState => ({
   service_type: '',
-  device_type: '',
   issued_no: '',
   issued_site: '',
   issued_site_phase: '',
@@ -69,6 +70,7 @@ const getEmptyCreateForm = (): HwmaCreateFormState => ({
   device_owner: '',
   borrow_device_name: '',
   created_by_nt_account: '',
+  warranty_date: '',
 });
 
 const OPTIONAL_CREATE_STRING_KEYS: (keyof HwmaCreateFormState)[] = [
@@ -87,12 +89,12 @@ const OPTIONAL_CREATE_STRING_KEYS: (keyof HwmaCreateFormState)[] = [
   'device_owner',
   'borrow_device_name',
   'created_by_nt_account',
+  'warranty_date',
 ];
 
 const buildHwmCreateBody = (form: HwmaCreateFormState): HWMACaseCreateBody => {
   const body: HWMACaseCreateBody = {
     service_type: form.service_type as HWMACaseServiceType,
-    device_type: form.device_type as HWMACaseDeviceType,
   };
   const assign = body as unknown as Record<string, string>;
   for (const key of OPTIONAL_CREATE_STRING_KEYS) {
@@ -100,6 +102,28 @@ const buildHwmCreateBody = (form: HwmaCreateFormState): HWMACaseCreateBody => {
     if (v) assign[key] = v;
   }
   return body;
+};
+
+/** 從 ITCMS 等回傳字串擷取 YYYY-MM-DD 供 date input */
+const extractIsoDatePrefix = (raw: string | undefined | null): string => {
+  if (raw == null) return '';
+  const t = String(raw).trim();
+  const m = t.match(/^(\d{4}-\d{2}-\d{2})/);
+  return m ? m[1] : '';
+};
+
+const serviceTypeToBundleCategory = (
+  st: HwmaCreateFormState['service_type'],
+): keyof HWMACaseServiceTypeBundleResponse | null => {
+  if (st === 'PC') return 'pc';
+  if (st === 'Monitor') return 'monitor';
+  if (st === 'Parts') return 'parts';
+  return null;
+};
+
+const formatSiteOptionLabel = (siteKey: string, siteValue: string) => {
+  if (siteValue === 'null') return `不限（${siteKey}）`;
+  return siteValue;
 };
 
 const getDefaultKpiData = (): HWMADashboardKPI[] => [
@@ -240,9 +264,89 @@ const HWMAHome = () => {
     type: 'success' | 'error';
   }>({ isOpen: false, title: '', message: '', type: 'success' });
 
+  const [serviceSiteMap, setServiceSiteMap] = useState<HWMACaseServiceSiteMap>({});
+  const [serviceTypeBundle, setServiceTypeBundle] = useState<HWMACaseServiceTypeBundleResponse>(() => ({
+    pc: [],
+    monitor: [],
+    parts: [],
+  }));
+  const [createCatalogLoading, setCreateCatalogLoading] = useState(false);
+  const [createCatalogError, setCreateCatalogError] = useState('');
+
+  const siteSelectRows = useMemo(() => {
+    const sorted = Object.entries(serviceSiteMap).sort(([a], [b]) => a.localeCompare(b));
+    const seenVal = new Set<string>();
+    const rows: { siteKey: string; siteValue: string }[] = [];
+    for (const [k, v] of sorted) {
+      const val = typeof v === 'string' ? v : String(v);
+      if (seenVal.has(val)) continue;
+      seenVal.add(val);
+      rows.push({ siteKey: k, siteValue: val });
+    }
+    return rows;
+  }, [serviceSiteMap]);
+
+  const siteValueSet = useMemo(() => new Set(siteSelectRows.map((r) => r.siteValue)), [siteSelectRows]);
+
+  const bundleCategoryKey = useMemo(
+    () => serviceTypeToBundleCategory(createForm.service_type),
+    [createForm.service_type],
+  );
+
+  const bundleRows = useMemo(() => {
+    if (!bundleCategoryKey) return [];
+    return serviceTypeBundle[bundleCategoryKey] ?? [];
+  }, [bundleCategoryKey, serviceTypeBundle]);
+
+  const brandOptions = useMemo(() => {
+    const s = new Set<string>();
+    for (const row of bundleRows) {
+      if (row.device_brand) s.add(row.device_brand);
+    }
+    return [...s].sort((a, b) => a.localeCompare(b));
+  }, [bundleRows]);
+
+  const modelOptions = useMemo(() => {
+    const b = createForm.device_brand.trim();
+    if (!b) return [];
+    const s = new Set<string>();
+    for (const row of bundleRows) {
+      if (row.device_brand === b && row.device_model) s.add(row.device_model);
+    }
+    return [...s].sort((a, b) => a.localeCompare(b));
+  }, [bundleRows, createForm.device_brand]);
+
   const closeResultAlert = useCallback(() => {
     setResultAlert((prev) => ({ ...prev, isOpen: false }));
   }, []);
+
+  useEffect(() => {
+    if (!isModalOpen) return;
+    let cancelled = false;
+    setCreateCatalogLoading(true);
+    setCreateCatalogError('');
+    (async () => {
+      try {
+        const [sites, bundle] = await Promise.all([
+          hardwareMaintenanceAPI.getCaseServiceSites(),
+          hardwareMaintenanceAPI.getCaseServiceTypeBundle(),
+        ]);
+        if (cancelled) return;
+        setServiceSiteMap(sites);
+        setServiceTypeBundle(bundle);
+      } catch {
+        if (cancelled) return;
+        setCreateCatalogError('站點或設備類型清單載入失敗，請關閉視窗後重開再試。');
+        setServiceSiteMap({});
+        setServiceTypeBundle({ pc: [], monitor: [], parts: [] });
+      } finally {
+        if (!cancelled) setCreateCatalogLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [isModalOpen]);
 
   // 處理警告項目點擊
   const handleWarningClick = (item: WarningBannerItem) => {
@@ -399,7 +503,6 @@ const HWMAHome = () => {
       device_model: data.device_info?.device_model ?? prev.device_model,
       device_sn: data.device_info?.device_sn ?? prev.device_sn,
       device_owner: data.device_info?.device_owner ?? prev.device_owner,
-      device_type: data.device_info?.device_type ?? prev.device_type,
     }));
   };
 
@@ -442,6 +545,7 @@ const HWMAHome = () => {
     setPrefillErrors((prev) => ({ ...prev, device_name: undefined }));
     try {
       const data = await hardwareMaintenanceAPI.getItcmsDeviceInfo(deviceName);
+      const fromItcms = extractIsoDatePrefix(data.device_warranty_date);
       setCreateForm((prev) => ({
         ...prev,
         device_name: data.device_name ?? prev.device_name,
@@ -449,7 +553,7 @@ const HWMAHome = () => {
         device_model: data.device_model ?? prev.device_model,
         device_sn: data.device_sn ?? prev.device_sn,
         device_owner: data.device_owner ?? prev.device_owner,
-        device_type: data.device_type ?? prev.device_type,
+        warranty_date: fromItcms || prev.warranty_date,
       }));
       setDeviceWarrantyDate(data.device_warranty_date ?? '');
     } catch (error) {
@@ -474,9 +578,6 @@ const HWMAHome = () => {
     const errors: Partial<Record<keyof HwmaCreateFormState, string>> = {};
     if (!createForm.service_type) {
       errors.service_type = '請選擇 service_type（PC / Parts / Monitor）';
-    }
-    if (!createForm.device_type) {
-      errors.device_type = '請選擇 device_type（SNB / SPC）';
     }
     setCreateFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -826,47 +927,14 @@ const HWMAHome = () => {
 
             <form className={styles.modalForm} onSubmit={handleSubmit}>
               <p className={styles.helpText}>
-                必填：service_type、device_type。其餘欄位可留空（不送出）；勿填 hrt_id 與時間，由後端產生。
+                可先輸入 issued_no（case id）並按「get case center data」預填。必填：service_type。其餘欄位可留空（不送出）；勿填 hrt_id 與時間，由後端產生。
+                issued_site 來自 GET /cases/service/site（選項 value 為對照字串，含字面 {'"null"'} 表不限）；device_brand／device_model
+                來自 GET /cases/service/type，依 service_type 連動。warranty_date 為日期（YYYY-MM-DD）。
               </p>
-
-              <div className={styles.formGroup}>
-                <label htmlFor="hwma-service_type">service_type（必填）</label>
-                <select
-                  id="hwma-service_type"
-                  value={createForm.service_type}
-                  onChange={(e) =>
-                    handleCreateFieldChange('service_type', e.target.value as HwmaCreateFormState['service_type'])
-                  }
-                  className={createFormErrors.service_type ? styles.inputError : ''}
-                >
-                  <option value="">請選擇</option>
-                  <option value="PC">PC</option>
-                  <option value="Parts">Parts</option>
-                  <option value="Monitor">Monitor</option>
-                </select>
-                {createFormErrors.service_type && (
-                  <span className={styles.errorText}>{createFormErrors.service_type}</span>
-                )}
-              </div>
-
-              <div className={styles.formGroup}>
-                <label htmlFor="hwma-device_type">device_type（必填）</label>
-                <select
-                  id="hwma-device_type"
-                  value={createForm.device_type}
-                  onChange={(e) =>
-                    handleCreateFieldChange('device_type', e.target.value as HwmaCreateFormState['device_type'])
-                  }
-                  className={createFormErrors.device_type ? styles.inputError : ''}
-                >
-                  <option value="">請選擇</option>
-                  <option value="SNB">SNB</option>
-                  <option value="SPC">SPC</option>
-                </select>
-                {createFormErrors.device_type && (
-                  <span className={styles.errorText}>{createFormErrors.device_type}</span>
-                )}
-              </div>
+              {createCatalogLoading && (
+                <p className={styles.helpText}>載入站點與設備類型清單中…</p>
+              )}
+              {createCatalogError && <span className={styles.errorText}>{createCatalogError}</span>}
 
               <div className={styles.formGroup}>
                 <label htmlFor="hwma-issued_no">issued_no</label>
@@ -889,15 +957,118 @@ const HWMAHome = () => {
                 </div>
                 {prefillErrors.issued_no && <span className={styles.errorText}>{prefillErrors.issued_no}</span>}
               </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-service_type">service_type（必填）</label>
+                <select
+                  id="hwma-service_type"
+                  value={createForm.service_type}
+                  onChange={(e) => {
+                    const v = e.target.value as HwmaCreateFormState['service_type'];
+                    setCreateForm((prev) => ({ ...prev, service_type: v, device_brand: '', device_model: '' }));
+                    setCreateFormErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.service_type;
+                      delete next.device_brand;
+                      delete next.device_model;
+                      return next;
+                    });
+                  }}
+                  className={createFormErrors.service_type ? styles.inputError : ''}
+                >
+                  <option value="">請選擇</option>
+                  <option value="PC">PC</option>
+                  <option value="Parts">Parts</option>
+                  <option value="Monitor">Monitor</option>
+                </select>
+                {createFormErrors.service_type && (
+                  <span className={styles.errorText}>{createFormErrors.service_type}</span>
+                )}
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-device_brand">device_brand</label>
+                <select
+                  id="hwma-device_brand"
+                  value={createForm.device_brand}
+                  disabled={!bundleCategoryKey || createCatalogLoading}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setCreateForm((prev) => ({ ...prev, device_brand: next, device_model: '' }));
+                    if (createFormErrors.device_brand) {
+                      setCreateFormErrors((prev) => {
+                        const n = { ...prev };
+                        delete n.device_brand;
+                        return n;
+                      });
+                    }
+                  }}
+                >
+                  <option value="">請選擇（可留空）</option>
+                  {brandOptions.map((b) => (
+                    <option key={b} value={b}>
+                      {b}
+                    </option>
+                  ))}
+                  {createForm.device_brand.trim() !== '' &&
+                    !brandOptions.includes(createForm.device_brand.trim()) && (
+                      <option value={createForm.device_brand.trim()}>
+                        {createForm.device_brand.trim()}（未在清單，仍送出此值）
+                      </option>
+                    )}
+                </select>
+                {!bundleCategoryKey && (
+                  <span className={styles.helpText}>請先選擇 service_type（PC／Monitor／Parts）以載入品牌。</span>
+                )}
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-device_model">device_model</label>
+                <select
+                  id="hwma-device_model"
+                  value={createForm.device_model}
+                  disabled={!createForm.device_brand.trim() || createCatalogLoading}
+                  onChange={(e) => handleCreateFieldChange('device_model', e.target.value)}
+                >
+                  <option value="">請選擇（可留空）</option>
+                  {modelOptions.map((m) => (
+                    <option key={m} value={m}>
+                      {m}
+                    </option>
+                  ))}
+                  {createForm.device_model.trim() !== '' &&
+                    !modelOptions.includes(createForm.device_model.trim()) && (
+                      <option value={createForm.device_model.trim()}>
+                        {createForm.device_model.trim()}（未在清單，仍送出此值）
+                      </option>
+                    )}
+                </select>
+                {createForm.device_brand.trim() === '' && (
+                  <span className={styles.helpText}>請先選擇 device_brand 以載入型號（僅品牌無型號時可留空）。</span>
+                )}
+              </div>
+
               <div className={styles.formGroup}>
                 <label htmlFor="hwma-issued_site">issued_site</label>
-                <input
+                <select
                   id="hwma-issued_site"
-                  type="text"
                   value={createForm.issued_site}
+                  disabled={createCatalogLoading}
                   onChange={(e) => handleCreateFieldChange('issued_site', e.target.value)}
-                  placeholder="例：H-site"
-                />
+                >
+                  <option value="">請選擇（可留空）</option>
+                  {siteSelectRows.map(({ siteKey, siteValue }) => (
+                    <option key={siteKey} value={siteValue}>
+                      {formatSiteOptionLabel(siteKey, siteValue)}
+                    </option>
+                  ))}
+                  {createForm.issued_site.trim() !== '' &&
+                    !siteValueSet.has(createForm.issued_site.trim()) && (
+                      <option value={createForm.issued_site.trim()}>
+                        {createForm.issued_site.trim()}（未在對照表）
+                      </option>
+                    )}
+                </select>
               </div>
               <div className={styles.formGroup}>
                 <label htmlFor="hwma-issued_site_phase">issued_site_phase</label>
@@ -981,24 +1152,6 @@ const HWMAHome = () => {
                 )}
               </div>
               <div className={styles.formGroup}>
-                <label htmlFor="hwma-device_brand">device_brand</label>
-                <input
-                  id="hwma-device_brand"
-                  type="text"
-                  value={createForm.device_brand}
-                  onChange={(e) => handleCreateFieldChange('device_brand', e.target.value)}
-                />
-              </div>
-              <div className={styles.formGroup}>
-                <label htmlFor="hwma-device_model">device_model</label>
-                <input
-                  id="hwma-device_model"
-                  type="text"
-                  value={createForm.device_model}
-                  onChange={(e) => handleCreateFieldChange('device_model', e.target.value)}
-                />
-              </div>
-              <div className={styles.formGroup}>
                 <label htmlFor="hwma-device_sn">device_sn</label>
                 <input
                   id="hwma-device_sn"
@@ -1034,6 +1187,17 @@ const HWMAHome = () => {
                   value={createForm.created_by_nt_account}
                   onChange={(e) => handleCreateFieldChange('created_by_nt_account', e.target.value)}
                 />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label htmlFor="hwma-warranty_date">warranty_date</label>
+                <input
+                  id="hwma-warranty_date"
+                  type="date"
+                  value={createForm.warranty_date}
+                  onChange={(e) => handleCreateFieldChange('warranty_date', e.target.value)}
+                />
+                <span className={styles.helpText}>格式 YYYY-MM-DD；留空則不送出。get itcms data 若帶回保固日會嘗試填入。</span>
               </div>
 
               <div className={styles.modalActions}>
