@@ -150,6 +150,39 @@
   color: var(--text-primary);
 }
 
+.repairItemSearchWrap {
+  margin-bottom: 0.9rem;
+}
+
+.repairItemSearchLabel {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.35rem;
+}
+
+.repairItemSearchInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--secondary);
+  color: var(--text-primary);
+  font-size: 0.9rem;
+}
+
+.repairItemSearchInput:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(var(--primary-rgb), 0.2);
+}
+
+.repairItemSearchInput:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
 .optionGrid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
@@ -174,6 +207,14 @@
 .optionCard:hover:not(:disabled) {
   border-color: var(--primary);
   box-shadow: 0 0 0 1px rgba(var(--primary-rgb), 0.18);
+}
+
+.optionCategory {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  line-height: 1.25;
+  padding-right: 1.25rem;
 }
 
 .optionName {

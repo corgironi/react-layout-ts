@@ -90,12 +90,12 @@ function isVendorIssueSubmitAction(code: string): boolean {
 
 function isSetRequiredDateAction(code: string): boolean {
   const normalized = code.trim().toUpperCase();
-  return (
+  const match =
     normalized === 'SET_REPQIRED_DATE' ||
     normalized === 'SET_REQUIRED_DATE' ||
     normalized === 'SET_REPAIR_DATE' ||
-    normalized === 'SET_REPAIR'
-  );
+    normalized === 'SET_REPAIR';
+  return match;
 }
 
 function isVendorIssueStatus(status: string): boolean {
@@ -104,7 +104,20 @@ function isVendorIssueStatus(status: string): boolean {
 
 function isConfirmRequiredDateStatus(status: string): boolean {
   const normalized = status.trim().toLowerCase();
-  return normalized === 'confirm_reqpired_date' || normalized === 'confirm_required_date';
+  const match =
+    normalized === 'confirm_reqpired_date' || normalized === 'confirm_required_date';
+  return match;
+}
+
+/** 可維修品項搜尋：比對類別、品名、規格、機型（不分大小寫；多個關鍵字須同時符合） */
+function repairItemOptionMatchesSearch(row: HWMARepairItemOption, rawQuery: string): boolean {
+  const q = rawQuery.trim().toLowerCase();
+  if (!q) return true;
+  const hay = [row.item_category, row.item_name, row.item_spec, row.device_model]
+    .map((s) => String(s ?? '').toLowerCase())
+    .join(' ');
+  const tokens = q.split(/\s+/).filter(Boolean);
+  return tokens.every((t) => hay.includes(t));
 }
 
 type VendorQuoteLine = {
@@ -243,6 +256,7 @@ const RepairFlow = () => {
   const [optionsError, setOptionsError] = useState('');
   const [warrantyTypeOptions, setWarrantyTypeOptions] = useState<HWMAWarrantyTypeOption[]>([]);
   const [warrantyTypeError, setWarrantyTypeError] = useState('');
+  const [repairItemSearchQuery, setRepairItemSearchQuery] = useState('');
 
   const [bannerSuccess, setBannerSuccess] = useState('');
   const [utilityBusy, setUtilityBusy] = useState(false);
@@ -321,6 +335,15 @@ const RepairFlow = () => {
       cancelled = true;
     };
   }, [vendorModalOpen, data?.hrt_id, data?.parent_ticket?.issued_no]);
+
+  useEffect(() => {
+    if (vendorModalOpen) setRepairItemSearchQuery('');
+  }, [vendorModalOpen]);
+
+  const filteredRepairItemOptions = useMemo(
+    () => repairItemOptions.filter((row) => repairItemOptionMatchesSearch(row, repairItemSearchQuery)),
+    [repairItemOptions, repairItemSearchQuery],
+  );
 
   const vendorIssueAction = useMemo(
     () => (data?.flow_status.available_actions ?? []).find((a) => isVendorIssueSubmitAction(a.action_code)),
@@ -825,15 +848,32 @@ const RepairFlow = () => {
                     {repairItemOptions[0]?.device_model || data.parent_ticket.device_model || '—'}
                   </div>
                 </div>
+                <div className={styles.repairItemSearchWrap}>
+                  <label className={styles.repairItemSearchLabel} htmlFor="repair-item-search">
+                    搜尋品項
+                  </label>
+                  <input
+                    id="repair-item-search"
+                    type="search"
+                    className={styles.repairItemSearchInput}
+                    placeholder="品名、類別、規格或關鍵字（例：ssd、電腦零組件、螢幕）"
+                    value={repairItemSearchQuery}
+                    onChange={(e) => setRepairItemSearchQuery(e.target.value)}
+                    disabled={actionBusy}
+                    autoComplete="off"
+                    enterKeyHint="search"
+                  />
+                </div>
                 <div className={styles.optionGrid}>
-                  {repairItemOptions.map((row, idx) => (
+                  {filteredRepairItemOptions.map((row, idx) => (
                     <button
-                      key={`${row.item_name}-${row.item_spec}-${idx}`}
+                      key={`${row.item_category}-${row.item_name}-${row.item_spec}-${idx}`}
                       type="button"
                       className={styles.optionCard}
                       disabled={actionBusy}
                       onClick={() => addRepairItemOptionRow(row)}
                     >
+                      <div className={styles.optionCategory}>{row.item_category?.trim() || '—'}</div>
                       <div className={styles.optionName}>{row.item_name}</div>
                       <div className={styles.optionSpec}>{row.item_spec || '-'}</div>
                       <div className={styles.optionPrice}>
@@ -847,6 +887,9 @@ const RepairFlow = () => {
                 </div>
                 {repairItemOptions.length === 0 && (
                   <p className={styles.modalMuted}>可維修品項無資料。</p>
+                )}
+                {repairItemOptions.length > 0 && filteredRepairItemOptions.length === 0 && (
+                  <p className={styles.modalMuted}>沒有符合搜尋條件的品項，請修改關鍵字。</p>
                 )}
               </>
             )}
