@@ -170,6 +170,8 @@ export interface HWMARepairFlowCurrentState {
   is_special: boolean;
   sla_limit_seconds: number;
   custom_message: null | Record<string, unknown>;
+  /** 晚於 history 最後一段 left_at 之留言，或尚無 history 時之留言（當下 state 備註） */
+  comments?: HWMAFlowCommentEntry[];
 }
 
 export interface HWMARepairAvailableAction {
@@ -182,6 +184,16 @@ export interface HWMARepairAvailableAction {
   is_special?: boolean;
 }
 
+/**
+ * 後端將 reqpircomment.json 依時間掛入 flow_status 之留言元素。
+ * 讀取位置（RepairFlow 時間軸）：history[i].comments、current_state.comments、
+ * default_future_paths[j].comments（is_current 與 current_state 對齊，UI 以 current_state 為主避免重複）。
+ */
+export interface HWMAFlowCommentEntry {
+  comment: string;
+  created_at: string;
+}
+
 export interface HWMARepairHistoryEntry {
   from_state_code: string;
   to_state_code: string;
@@ -192,6 +204,8 @@ export interface HWMARepairHistoryEntry {
   left_at: string | null;
   duration_seconds: number | null;
   transaction_id: string;
+  /** 落在本段 entered_at～left_at（含）之留言；可能為 [] */
+  comments?: HWMAFlowCommentEntry[];
 }
 
 export interface HWMARepairDefaultFuturePath {
@@ -209,6 +223,8 @@ export interface HWMARepairDefaultFuturePath {
   default_transition_to_ws_id: string | null;
   /** 若後端提供，則於流程節點旁顯示處理時間上限 */
   sla_limit_seconds?: number | null;
+  /** is_current 時與 current_state.comments 一致；非目前節點通常為 [] */
+  comments?: HWMAFlowCommentEntry[];
 }
 
 export interface HWMARepairEventLogEntry {
@@ -251,6 +267,14 @@ export interface HWMARepairItem {
 export interface HWMARepairByCaseResponse {
   total_count: number;
   items: HWMARepairItem[];
+}
+
+/**
+ * GET /HWMA/case/:issued_no — 母單欄位 + **repairs**（每筆結構同 GET /HWMA/repaired/:rid）。
+ * 留言由後端掛入各 repair.flow_status，請自 history / current_state / default_future_paths 讀取，勿另打 comment 專用 API。
+ */
+export interface HWMACaseWithRepairsResponse extends HWMACaseItem {
+  repairs: HWMARepairItem[];
 }
 
 export type HWMADeviceWarrantyHint = 'IN_WARRANTY' | 'OUT_WARRANTY';
@@ -333,6 +357,31 @@ export const hardwareMaintenanceAPI = {
       return response.data;
     } catch (error) {
       console.error('取得 HWMA 維修子單管理資料失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * GET /HWMA/case/:issued_no — 單一母單 + 全部子單（含已掛入 flow_status 之留言）。
+   * Path 參數為母單 issued_no（必要時 URL 編碼）；Header 須帶 X-Time-Zone。
+   */
+  getCaseWithRepairsByIssuedNo: async (issued_no: string) => {
+    try {
+      const encoded = encodeURIComponent(issued_no.trim());
+      const response = await api.get<HWMACaseWithRepairsResponse>(`/HWMA/case/${encoded}`, {
+        headers: {
+          'X-Time-Zone': HWMA_X_TIME_ZONE,
+        },
+      });
+      return response.data;
+    } catch (error) {
+      console.error('取得 HWMA 母單與子單失敗:', error);
       if (axios.isAxiosError(error)) {
         console.error('請求錯誤詳情:', {
           status: error.response?.status,
@@ -461,6 +510,31 @@ export const hardwareMaintenanceAPI = {
       return response.data;
     } catch (error) {
       console.error('新增子單備註失敗:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('請求錯誤詳情:', {
+          status: error.response?.status,
+          data: error.response?.data,
+        });
+      }
+      throw error;
+    }
+  },
+
+  /**
+   * GET /cases/repairs/:detail_ticket_no/comment — 僅除錯／匯出用「純留言陣列」。
+   * 一般畫面請自 GET /HWMA/repaired/:rid 或 GET /HWMA/case/:issued_no 之 flow_status 讀取 comments。
+   */
+  getRepairComments: async (detail_ticket_no: string): Promise<HWMAFlowCommentEntry[]> => {
+    try {
+      const encoded = encodeURIComponent(detail_ticket_no);
+      const response = await api.get<HWMAFlowCommentEntry[]>(`/cases/repairs/${encoded}/comment`, {
+        headers: {
+          'X-Time-Zone': HWMA_X_TIME_ZONE,
+        },
+      });
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      console.error('取得子單留言列表失敗:', error);
       if (axios.isAxiosError(error)) {
         console.error('請求錯誤詳情:', {
           status: error.response?.status,

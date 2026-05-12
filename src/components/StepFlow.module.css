@@ -140,6 +140,7 @@
   font-size: 0.875rem;
   line-height: 1.6;
   margin-bottom: 0.75rem;
+  white-space: pre-line;
 }
 
 /* 步驟元數據（時間、負責人） */
@@ -234,6 +235,7 @@
 
   .stepComment {
     font-size: 0.8125rem;
+    white-space: pre-line;
   }
 
   .actionButton {

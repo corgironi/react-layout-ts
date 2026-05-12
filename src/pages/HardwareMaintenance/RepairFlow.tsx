@@ -1,3 +1,19 @@
+/**
+ * HWMA 子單留言（Comment）— 畫面讀取位置（後端掛入 flow_status，不另打 comment 專用 API）：
+ *
+ * - **history**：`repair.flow_status.history[i].comments`（`{ comment, created_at }[]`，可能 `[]`）。
+ *   語意：created_at 落在該段 entered_at～left_at（含）的留言。
+ * - **目前節點**：`repair.flow_status.current_state.comments`（與「當下 state」備註對齊）。
+ * - **路徑圖**：`default_future_paths[j].comments`；`is_current === true` 與 current_state.comments 一致，
+ *   本頁 StepFlow 以 **current_state** 顯示目前節點留言，future 節點不重複掛 is_current 之 comments。
+ *
+ * 一鍵母單＋子單（含留言）：`hardwareMaintenanceAPI.getCaseWithRepairsByIssuedNo(issued_no)` → GET `/HWMA/case/:issued_no`。
+ * 單筆子單：`getRepairedByRid`／PATCH transition 回傳同上 flow_status 結構。
+ * 除錯／匯出「純留言陣列」：`getRepairComments(detail_ticket_no)` → GET `/cases/repairs/:detail_ticket_no/comment`。
+ * 新增留言：`postRepairComment` → POST `/cases/repairs/:detail_ticket_no/comment`；成功後請 refetch 子單，留言會出現在上述 comments。
+ *
+ * 組裝邏輯見本檔 `buildStepsFromRepairItem`。
+ */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import axios from 'axios';
@@ -5,6 +21,7 @@ import styles from './RepairFlow.module.css';
 import StepFlow, { StepFlowStep } from '../../components/StepFlow';
 import {
   hardwareMaintenanceAPI,
+  HWMAFlowCommentEntry,
   HWMARepairItemsByCaseResponse,
   HWMARepairItemOption,
   HWMARepairAvailableAction,
@@ -81,6 +98,20 @@ function historyElapsedSeconds(h: HWMARepairHistoryEntry): number | null {
     }
   }
   return null;
+}
+
+/** 將 flow_status 內嵌之 comments 轉成 StepFlow 說明文字（多行） */
+function formatFlowStatusComments(comments: HWMAFlowCommentEntry[] | undefined | null): string | undefined {
+  if (!comments || comments.length === 0) return undefined;
+  const lines = comments.map((c) => {
+    const text = typeof c.comment === 'string' ? c.comment.trim() : '';
+    const when = formatDateTime(c.created_at) ?? (typeof c.created_at === 'string' ? c.created_at : '');
+    if (!text && !when) return '';
+    if (!when) return text;
+    if (!text) return `[${when}]`;
+    return `[${when}] ${text}`;
+  }).filter(Boolean);
+  return lines.length > 0 ? lines.join('\n') : undefined;
 }
 
 function isVendorIssueSubmitAction(code: string): boolean {
@@ -189,24 +220,29 @@ function buildStepsFromRepairItem(
 
   (fs.history ?? []).forEach((h, i) => {
     const elapsedSec = historyElapsedSeconds(h);
+    const transition =
+      h.from_state_code && h.to_state_code && h.from_state_code !== h.to_state_code
+        ? `${h.from_state_code} → ${h.to_state_code}`
+        : undefined;
+    const notes = formatFlowStatusComments(h.comments);
+    const comment = [transition, notes].filter(Boolean).join('\n\n') || undefined;
     steps.push({
       id: `history-${h.transaction_id || i}`,
       title: h.action_name || h.to_state_code,
       slaLabel: formatElapsedLabel(elapsedSec),
-      comment:
-        h.from_state_code && h.to_state_code && h.from_state_code !== h.to_state_code
-          ? `${h.from_state_code} → ${h.to_state_code}`
-          : undefined,
+      comment,
       timestamp: formatDateTime(h.entered_at),
       responsible: h.action_by || undefined,
       status: 'completed',
     });
   });
 
+  const currentNotes = formatFlowStatusComments(fs.current_state.comments);
   steps.push({
     id: `current-${fs.current_state.state_code}`,
     title: fs.current_state.name,
     slaLabel: formatSlaLabel(fs.current_state.sla_limit_seconds),
+    comment: currentNotes || undefined,
     timestamp: formatDateTime(fs.current_state.entered_at),
     responsible:
       item.current_process_name?.trim() ||
@@ -223,11 +259,15 @@ function buildStepsFromRepairItem(
 
   futureSlice.forEach((p, i) => {
     if (p.is_visible === false) return;
+    const transitionHint = p.default_transition_action_name || undefined;
+    /** 與 current_state 擇一：目前節點留言已在 active 步驟顯示，避免與 is_current 路徑重複 */
+    const pathNotes = p.is_current ? undefined : formatFlowStatusComments(p.comments);
+    const comment = [transitionHint, pathNotes].filter(Boolean).join('\n\n') || undefined;
     steps.push({
       id: `future-${p.ws_id}-${i}`,
       title: p.state_name,
       slaLabel: formatSlaLabel(p.sla_limit_seconds ?? undefined),
-      comment: p.default_transition_action_name || undefined,
+      comment,
       status: 'pending',
     });
   });
@@ -530,13 +570,16 @@ const RepairFlow = () => {
       setCommentModalOpen(false);
       setCommentDraft('');
       const when = formatDateTime(res.created_at) ?? res.created_at;
-      setBannerSuccess(`備註已送出（${when}）。目前無 GET 可查歷史留言。`);
+      await refetchRepairItem();
+      setBannerSuccess(
+        `備註已送出（${when}）。已重新載入子單；留言顯示於流程節點（flow_status.history／current_state.comments）。`,
+      );
     } catch (e) {
       setCommentModalError(parseApiError(e));
     } finally {
       setUtilityBusy(false);
     }
-  }, [data?.detail_ticket_no, commentDraft]);
+  }, [data?.detail_ticket_no, commentDraft, refetchRepairItem]);
 
   const submitRepairProxy = useCallback(async () => {
     if (!data?.detail_ticket_no) return;
