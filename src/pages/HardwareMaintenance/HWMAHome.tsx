@@ -51,6 +51,8 @@ type HwmaCreateFormState = {
   created_by_nt_account: string;
   /** YYYY-MM-DD，對應送出欄位 warranty_date */
   warranty_date: string;
+  /** true＝裝置已在 IT service center；未勾選時 POST 不送欄位（後端當 false） */
+  is_device_at_site: boolean;
 };
 
 const getEmptyCreateForm = (): HwmaCreateFormState => ({
@@ -71,9 +73,12 @@ const getEmptyCreateForm = (): HwmaCreateFormState => ({
   borrow_device_name: '',
   created_by_nt_account: '',
   warranty_date: '',
+  is_device_at_site: false,
 });
 
-const OPTIONAL_CREATE_STRING_KEYS: (keyof HwmaCreateFormState)[] = [
+const OPTIONAL_CREATE_STRING_KEYS: Array<
+  Exclude<keyof HwmaCreateFormState, 'service_type' | 'is_device_at_site'>
+> = [
   'issued_no',
   'issued_site',
   'issued_site_phase',
@@ -96,6 +101,9 @@ const buildHwmCreateBody = (form: HwmaCreateFormState): HWMACaseCreateBody => {
   const body: HWMACaseCreateBody = {
     service_type: form.service_type as HWMACaseServiceType,
   };
+  if (form.is_device_at_site) {
+    body.is_device_at_site = true;
+  }
   const assign = body as unknown as Record<string, string>;
   for (const key of OPTIONAL_CREATE_STRING_KEYS) {
     const v = form[key].trim();
@@ -179,6 +187,7 @@ const caseItemFieldTexts = (row: HWMACaseItem): string[] => {
     displayCaseCell(r.reporter_nt_account),
     displayCaseCell(r.reporter_employee_id),
     displayCaseCell(r.service_type),
+    displayCaseCell(row.is_device_at_site),
     displayCaseCell(r.device_name),
     displayCaseCell(r.issue_description),
     displayCaseCell(r.borrow_device_name),
@@ -809,6 +818,7 @@ const HWMAHome = () => {
                 <th>reporter_nt_account</th>
                 <th>reporter_employee_id</th>
                 <th>service_type</th>
+                <th>is_device_at_site</th>
                 <th>device_name</th>
                 <th>issue_description</th>
                 <th>borrow_device_name</th>
@@ -822,7 +832,7 @@ const HWMAHome = () => {
             <tbody>
               {!listLoading && !listError && showQuickSearchNoMatch && (
                   <tr>
-                    <td colSpan={15} className={styles.emptyCell}>
+                    <td colSpan={16} className={styles.emptyCell}>
                       本頁無符合「{quickKeyword.trim()}」的列（可換頁或使用上方 API 搜尋縮小範圍）
                     </td>
                   </tr>
@@ -847,6 +857,7 @@ const HWMAHome = () => {
                       <td>{highlightText(row.reporter_nt_account, q)}</td>
                       <td>{highlightText(row.reporter_employee_id, q)}</td>
                       <td>{highlightText(row.service_type, q)}</td>
+                      <td>{highlightText(row.is_device_at_site, q)}</td>
                       <td>{highlightText(row.device_name, q)}</td>
                       <td className={styles.caseCellDesc}>{highlightText(row.issue_description, q)}</td>
                       <td>{highlightText(row.borrow_device_name, q)}</td>
@@ -879,14 +890,14 @@ const HWMAHome = () => {
                 })}
               {!listLoading && !listError && appliedFilters && rawCaseItems.length === 0 && (
                 <tr>
-                  <td colSpan={15} className={styles.emptyCell}>
+                  <td colSpan={16} className={styles.emptyCell}>
                     伺服器無符合日期／狀態條件的資料
                   </td>
                 </tr>
               )}
               {!listLoading && !appliedFilters && (
                 <tr>
-                  <td colSpan={15} className={styles.emptyCell}>
+                  <td colSpan={16} className={styles.emptyCell}>
                     請設定條件後點擊「搜尋」載入列表（請求皆帶 X-Time-Zone: Asia/Taipei）
                   </td>
                 </tr>
@@ -930,6 +941,7 @@ const HWMAHome = () => {
                 可先輸入 issued_no（case id）並按「get case center data」預填。必填：service_type。其餘欄位可留空（不送出）；勿填 hrt_id 與時間，由後端產生。
                 issued_site 來自 GET /cases/service/site（選項 value 為對照字串，含字面 {'"null"'} 表不限）；device_brand／device_model
                 來自 GET /cases/service/type，依 service_type 連動。warranty_date 為日期（YYYY-MM-DD）。
+                is_device_at_site：勾選表示裝置已在 IT service center；未勾選則不送該欄位（後端當 false）。
               </p>
               {createCatalogLoading && (
                 <p className={styles.helpText}>載入站點與設備類型清單中…</p>
@@ -984,6 +996,23 @@ const HWMAHome = () => {
                 {createFormErrors.service_type && (
                   <span className={styles.errorText}>{createFormErrors.service_type}</span>
                 )}
+              </div>
+
+              <div className={styles.formGroup}>
+                <label className={styles.checkboxLabel} htmlFor="hwma-is_device_at_site">
+                  <input
+                    id="hwma-is_device_at_site"
+                    type="checkbox"
+                    checked={createForm.is_device_at_site}
+                    onChange={(e) =>
+                      setCreateForm((prev) => ({ ...prev, is_device_at_site: e.target.checked }))
+                    }
+                  />
+                  <span>裝置已在 IT service center（is_device_at_site）</span>
+                </label>
+                <p className={styles.helpText} style={{ marginTop: '0.35rem' }}>
+                  勾選後 POST 會送 <code>true</code>；未勾選不送欄位，後端視為 false。
+                </p>
               </div>
 
               <div className={styles.formGroup}>

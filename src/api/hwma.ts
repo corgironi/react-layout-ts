@@ -1,4 +1,4 @@
-﻿import './auth';
+import './auth';
 import axios from 'axios';
 import { api } from './client';
 
@@ -37,6 +37,8 @@ export interface HWMACaseItem {
   case_created_at: string;
   parent_case_status: string | null;
   total_sub_tickets: number;
+  /** 裝置是否已在 IT service center（GET /HWMA/case 等回傳） */
+  is_device_at_site?: boolean;
 }
 
 export interface HWMACaseListResponse {
@@ -92,6 +94,11 @@ export interface HWMACaseCreateBody {
   created_by_nt_account?: string;
   /** 保固／保固到期等日期，建議 YYYY-MM-DD */
   warranty_date?: string;
+  /**
+   * 裝置是否已在 IT service center（true＝是；false＝否）。
+   * 未送時後端視為 false；後端亦可能接受字串 "true"/"false" 等，此處以 boolean 送出。
+   */
+  is_device_at_site?: boolean;
 }
 
 /** GET /:caseid/case-center_data 回傳 */
@@ -150,6 +157,8 @@ export interface HWMARepairParentTicket {
   created_at: string;
   updated_at: string;
   is_deleted: boolean;
+  /** 裝置是否已在 IT service center */
+  is_device_at_site?: boolean;
 }
 
 export interface HWMARepairFlowCurrentState {
