@@ -23,6 +23,7 @@ import {
   hardwareMaintenanceAPI,
   HWMAFlowCommentEntry,
   HWMARepairItemsByCaseResponse,
+  HWMARepairItemLine,
   HWMARepairItemOption,
   HWMARepairAvailableAction,
   HWMARepairHistoryEntry,
@@ -138,6 +139,17 @@ function isConfirmRequiredDateStatus(status: string): boolean {
   const match =
     normalized === 'confirm_reqpired_date' || normalized === 'confirm_required_date';
   return match;
+}
+
+/** flow_status.current_state.state_code（或 current_status）為 DELIVERY_DEVICE 時，DELIVERY 須帶 pickup_proxy */
+function isDeliveryDeviceState(item: HWMARepairItem): boolean {
+  const cur = item.flow_status?.current_state?.state_code?.trim().toUpperCase() ?? '';
+  const status = item.current_status?.trim().toUpperCase() ?? '';
+  return cur === 'DELIVERY_DEVICE' || status === 'DELIVERY_DEVICE';
+}
+
+function isDeliveryActionCode(code: string): boolean {
+  return code.trim().toUpperCase() === 'DELIVERY';
 }
 
 /** 可維修品項搜尋：比對類別、品名、規格、機型（不分大小寫；多個關鍵字須同時符合） */
@@ -306,6 +318,10 @@ const RepairFlow = () => {
   const [proxyModalOpen, setProxyModalOpen] = useState(false);
   const [proxyDraft, setProxyDraft] = useState('');
   const [proxyModalError, setProxyModalError] = useState('');
+  const [deliveryModalOpen, setDeliveryModalOpen] = useState(false);
+  const [deliveryAction, setDeliveryAction] = useState<HWMARepairAvailableAction | null>(null);
+  const [pickupProxyDraft, setPickupProxyDraft] = useState('');
+  const [deliveryModalError, setDeliveryModalError] = useState('');
 
   const load = useCallback(async () => {
     if (!rid?.trim()) {
@@ -385,6 +401,12 @@ const RepairFlow = () => {
     [repairItemOptions, repairItemSearchQuery],
   );
 
+  const repairItemsFromApi = useMemo((): HWMARepairItemLine[] => {
+    const raw = data?.repair_items;
+    if (!raw || !Array.isArray(raw)) return [];
+    return raw.filter((row) => row && typeof row === 'object');
+  }, [data?.repair_items]);
+
   const vendorIssueAction = useMemo(
     () => (data?.flow_status.available_actions ?? []).find((a) => isVendorIssueSubmitAction(a.action_code)),
     [data],
@@ -457,8 +479,8 @@ const RepairFlow = () => {
   };
 
   const runTransition = useCallback(
-    async (action: HWMARepairAvailableAction, context: Record<string, unknown>) => {
-      if (!data?.detail_ticket_no || transitionLockRef.current) return;
+    async (action: HWMARepairAvailableAction, context: Record<string, unknown>): Promise<boolean> => {
+      if (!data?.detail_ticket_no || transitionLockRef.current) return false;
       transitionLockRef.current = true;
       setActionBusy(true);
       setBannerError('');
@@ -470,8 +492,10 @@ const RepairFlow = () => {
         });
         setData(updated);
         await refetchRepairItem();
+        return true;
       } catch (e) {
         setBannerError(parseApiError(e));
+        return false;
       } finally {
         transitionLockRef.current = false;
         setActionBusy(false);
@@ -494,10 +518,33 @@ const RepairFlow = () => {
         setRequiredDateModalOpen(true);
         return;
       }
+      if (isDeliveryDeviceState(data) && isDeliveryActionCode(action.action_code)) {
+        setDeliveryAction(action);
+        setPickupProxyDraft('');
+        setDeliveryModalError('');
+        setDeliveryModalOpen(true);
+        return;
+      }
       await runTransition(action, {});
     },
     [data, runTransition],
   );
+
+  const submitDeliveryPickup = useCallback(async () => {
+    if (!data || !deliveryAction || transitionLockRef.current) return;
+    const card = pickupProxyDraft.trim();
+    if (!card) {
+      setDeliveryModalError('請輸入代領人卡片編號（廠商／員工）');
+      return;
+    }
+    setDeliveryModalError('');
+    const ok = await runTransition(deliveryAction, { pickup_proxy: card });
+    if (ok) {
+      setDeliveryModalOpen(false);
+      setDeliveryAction(null);
+      setPickupProxyDraft('');
+    }
+  }, [data, deliveryAction, pickupProxyDraft, runTransition]);
 
   const submitVendorQuote = useCallback(async () => {
     if (!data || transitionLockRef.current) return;
@@ -769,6 +816,17 @@ const RepairFlow = () => {
             <span className={styles.caseInfoLabel}>聯絡電話</span>
             <span className={styles.caseInfoValue}>{fmtDisplay(data.current_process_tel)}</span>
           </div>
+          {data.device_proxy?.name != null && String(data.device_proxy.name).trim() !== '' && (
+            <div className={styles.caseInfoItem}>
+              <span className={styles.caseInfoLabel}>設備代領（device_proxy）</span>
+              <span className={styles.caseInfoValue}>
+                {fmtDisplay(data.device_proxy.name)}
+                {data.device_proxy.updated_at
+                  ? ` · 更新於 ${formatDateTime(data.device_proxy.updated_at) ?? data.device_proxy.updated_at}`
+                  : ''}
+              </span>
+            </div>
+          )}
         </div>
         {(Boolean(data.detail_issued_remark) || data.detail_issued_context != null) && (
           <div className={styles.subTicketNote}>
@@ -833,6 +891,47 @@ const RepairFlow = () => {
           </div>
         )}
       </div>
+
+      {repairItemsFromApi.length > 0 && (
+        <section className={styles.repairItemsSection} aria-labelledby="repair-items-section-title">
+          <h2 id="repair-items-section-title" className={styles.repairItemsSectionTitle}>
+            已選維修品項（repair_items）
+          </h2>
+          <p className={styles.repairItemsSectionHint}>
+            資料來自 GET 子單回應之 <code>repair_items</code>，為廠商送出後由後端保存之項目。
+          </p>
+          <div className={styles.repairItemsTableWrap}>
+            <table className={styles.contextTable}>
+              <thead>
+                <tr>
+                  <th>類別</th>
+                  <th>品名</th>
+                  <th>類型</th>
+                  <th>規格</th>
+                  <th>機型</th>
+                  <th>數量</th>
+                  <th>保固</th>
+                  <th>備註</th>
+                </tr>
+              </thead>
+              <tbody>
+                {repairItemsFromApi.map((it, idx) => (
+                  <tr key={`api-repair-item-${idx}-${it.item_name}-${it.device_model}`}>
+                    <td>{fmtDisplay(it.item_category)}</td>
+                    <td>{fmtDisplay(it.item_name)}</td>
+                    <td>{fmtDisplay(it.item_type)}</td>
+                    <td>{fmtDisplay(it.item_spec)}</td>
+                    <td>{fmtDisplay(it.device_model)}</td>
+                    <td>{fmtDisplay(it.count)}</td>
+                    <td>{fmtDisplay(it.warranty_type)}</td>
+                    <td>{fmtDisplay(it.remark)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
 
       {regularActions.length > 0 && (
         <div className={styles.actionButtons}>
@@ -1219,6 +1318,76 @@ const RepairFlow = () => {
                 onClick={() => void submitRepairProxy()}
               >
                 {utilityBusy ? '送出中…' : '確認設定'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deliveryModalOpen && deliveryAction && (
+        <div
+          className={styles.modalBackdrop}
+          onClick={() => {
+            if (!actionBusy) {
+              setDeliveryModalOpen(false);
+              setDeliveryAction(null);
+              setPickupProxyDraft('');
+              setDeliveryModalError('');
+            }
+          }}
+          role="presentation"
+        >
+          <div
+            className={styles.modalDialog}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delivery-pickup-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 id="delivery-pickup-modal-title" className={styles.modalTitle}>
+              {deliveryAction.action_name || 'DELIVERY'}
+            </h3>
+            <p className={styles.modalMuted}>
+              目前節點為 <code>DELIVERY_DEVICE</code>，執行 transition 時請帶入代領人卡片編號（廠商／員工）。
+              Body：<code>{'{ action_code: "DELIVERY", context: { pickup_proxy: "…" } }'}</code>
+            </p>
+            {deliveryModalError && <p className={styles.modalError}>{deliveryModalError}</p>}
+            <label className={styles.modalLabel} htmlFor="delivery-pickup-proxy-input">
+              代領人卡片編號（pickup_proxy）
+            </label>
+            <input
+              id="delivery-pickup-proxy-input"
+              type="text"
+              className={styles.modalInput}
+              value={pickupProxyDraft}
+              onChange={(e) => setPickupProxyDraft(e.target.value)}
+              disabled={actionBusy}
+              placeholder="例：127541"
+              autoComplete="off"
+            />
+            <div className={styles.modalActions}>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${styles.actionBtnSecondary}`}
+                disabled={actionBusy}
+                onClick={() => {
+                  if (!actionBusy) {
+                    setDeliveryModalOpen(false);
+                    setDeliveryAction(null);
+                    setPickupProxyDraft('');
+                    setDeliveryModalError('');
+                  }
+                }}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${styles.actionBtnPrimary}`}
+                disabled={actionBusy || !pickupProxyDraft.trim()}
+                onClick={() => void submitDeliveryPickup()}
+              >
+                {actionBusy ? '送出中…' : '確認送出'}
               </button>
             </div>
           </div>

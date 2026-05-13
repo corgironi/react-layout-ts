@@ -605,6 +605,33 @@
   font-weight: 600;
 }
 
+/* 已選維修品項（母單資訊與操作按鈕之間） */
+.repairItemsSection {
+  background: var(--card-bg);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
+}
+
+.repairItemsSectionTitle {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.repairItemsSectionHint {
+  margin: 0 0 0.75rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.repairItemsTableWrap {
+  overflow-x: auto;
+}
+
 /* 操作按鈕區域 */
 .actionButtons {
   display: flex;

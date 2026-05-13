@@ -245,11 +245,28 @@ export interface HWMARepairFlowStatus {
   event_log: HWMARepairEventLogEntry[];
 }
 
+/** GET /HWMA/repaired 單筆子單上之「已選維修品項」列（廠商 SUBMIT 後由後端回寫） */
+export interface HWMARepairItemLine {
+  item_category: string;
+  item_name: string;
+  /** 品項類型（如 eDP）；與 item_spec 擇一或並存依後端 */
+  item_type?: string;
+  item_spec?: string;
+  device_model: string;
+  remark?: string;
+  count: number;
+  warranty_type?: string;
+}
+
 /** GET /HWMA/repaired 單筆子單（基本資訊 + 母單快照 + 流程引擎） */
 export interface HWMARepairItem {
   detail_ticket_no: string;
   detail_issued_remark: string | null;
   detail_issued_context: unknown | null;
+  /** 廠商選定後之維修品項列（GET 子單時一併回傳） */
+  repair_items?: HWMARepairItemLine[] | null;
+  /** 設備代領人（卡片／識別）與更新時間 */
+  device_proxy?: { name: string; updated_at: string } | null;
   current_status: string;
   current_process_nt: string;
   current_process_name: string;
