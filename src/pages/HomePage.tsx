@@ -3,41 +3,16 @@ import useAuth from '../hooks/useAuth';
 import Card from '../components/Card';
 import WarningBanner, { WarningBannerItem } from '../components/WarningBanner';
 import { useNavigate } from 'react-router';
-
-interface SystemRole {
-  systemName: string;
-  roles: string[];
-}
-
-interface UserProfile {
-  useraccount: string;
-  username: string;
-  tel: string;
-  location: string;
-  systems: SystemRole[];
-}
+import type { UserSystemEntry } from '../lib/systemPermissions';
+import {
+  getHwmaDefaultEntryPath,
+  hwmaHasAnyEnterableRoute,
+  isSystemShellVisible,
+} from '../lib/systemPermissions';
 
 const HomePage = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
-  // 固定的用戶資料
-  const userProfile: UserProfile = {
-    useraccount: "user001",
-    username: "張三",
-    tel: "0912345001",
-    location: "台北",
-    systems: [
-      {
-        systemName: "attendance",
-        roles: ["admin", "boss"]
-      },
-      {
-        systemName: "ioc",
-        roles: ["site_leader"]
-      }
-    ]
-  };
 
   // 假資料 - 警告橫幅項目
   const warningItems: WarningBannerItem[] = [
@@ -96,48 +71,57 @@ const HomePage = () => {
   };
 
   // 系統圖標映射
-  const getSystemIcon = (systemName: string) => {
+  const getSystemIcon = (system: UserSystemEntry) => {
+    const key = (system.system_path ?? system.systemName).toLowerCase();
     const iconMap: Record<string, string> = {
-      'attendance': '📊',
-      'ioc': '🏭',
-      'hr': '👥',
-      'finance': '💰',
-      'inventory': '📦',
-      'reports': '📈'
+      attendance: '📊',
+      ioc: '🏭',
+      hr: '👥',
+      finance: '💰',
+      inventory: '📦',
+      reports: '📈',
+      'hardware-maintenance': '🛠️',
     };
-    return iconMap[systemName.toLowerCase()] || '🔧';
+    return iconMap[key] || '🔧';
   };
 
   // 系統中文名稱映射
-  const getSystemDisplayName = (systemName: string) => {
+  const getSystemDisplayName = (system: UserSystemEntry) => {
+    const key = (system.system_path ?? system.systemName).toLowerCase();
     const nameMap: Record<string, string> = {
-      'attendance': '考勤管理',
-      'ioc': 'IOC 系統',
-      'hr': '人力資源',
-      'finance': '財務管理',
-      'inventory': '庫存管理',
-      'reports': '報表系統'
+      attendance: '考勤管理',
+      ioc: 'IOC 系統',
+      hr: '人力資源',
+      finance: '財務管理',
+      inventory: '庫存管理',
+      reports: '報表系統',
+      'hardware-maintenance': '硬體維修（報修）',
     };
-    return nameMap[systemName.toLowerCase()] || systemName;
+    return nameMap[key] || system.systemName;
   };
 
-  // 處理系統點擊導向
-  const handleSystemClick = (systemName: string) => {
-    const routeMap: Record<string, string> = {
-      'attendance': '/attendance',
-      'ioc': '/ioc',
-      'hr': '/hr',
-      'finance': '/finance',
-      'inventory': '/inventory',
-      'reports': '/reports'
-    };
+  const isHwmaSystem = (system: UserSystemEntry) => {
+    const key = (system.system_path ?? system.systemName).toLowerCase();
+    return key === 'hardware-maintenance';
+  };
 
-    const route = routeMap[systemName.toLowerCase()];
-    if (route) {
-      navigate(route);
-    } else {
-      navigate(`/system/${systemName.toLowerCase()}`);
+  const isSystemCardClickable = (system: UserSystemEntry) => {
+    if (!isSystemShellVisible(system)) return false;
+    if (isHwmaSystem(system)) {
+      return hwmaHasAnyEnterableRoute(system);
     }
+    return true;
+  };
+
+  const handleSystemCardClick = (system: UserSystemEntry) => {
+    if (!isSystemCardClickable(system)) return;
+    if (isHwmaSystem(system)) {
+      const path = getHwmaDefaultEntryPath(system);
+      if (path) navigate(path);
+      return;
+    }
+    const base = (system.system_path ?? system.systemName).replace(/^\/+/, '');
+    navigate(`/${base}`);
   };
 
   // 處理警告項目點擊
@@ -200,54 +184,55 @@ const HomePage = () => {
         onDismiss={handleWarningDismiss}
       />
       
-      {/* 員工權限及路口 */}
-      {userProfile && userProfile.systems && userProfile.systems.length > 0 && (
+      {/* 員工權限及路口（依後端 systems：system_visible、子路由 visible／needVerify） */}
+      {user?.systems && user.systems.filter(isSystemShellVisible).length > 0 && (
         <div className={styles.systemsSection}>
           <h2 className={styles.sectionTitle}>員工權限及路口</h2>
           <div className={styles.systemsGrid}>
-            {userProfile.systems.map((system: SystemRole) => (
-              <Card
-                key={system.systemName}
-                className={styles.systemCard}
-                onClick={() => handleSystemClick(system.systemName)}
-                isClickable={true}
-                variant="elevated"
-              >
-                <div className={styles.cardHeader}>
-                  <div className={styles.systemIcon}>
-                    {getSystemIcon(system.systemName)}
+            {user.systems.filter(isSystemShellVisible).map((system: UserSystemEntry) => {
+              const clickable = isSystemCardClickable(system);
+              return (
+                <Card
+                  key={`${system.systemName}-${system.system_path ?? ''}`}
+                  className={styles.systemCard}
+                  onClick={() => handleSystemCardClick(system)}
+                  isClickable={clickable}
+                  disabled={!clickable}
+                  variant="elevated"
+                >
+                  <div className={styles.cardHeader}>
+                    <div className={styles.systemIcon}>{getSystemIcon(system)}</div>
+                    <div className={styles.systemInfo}>
+                      <h3 className={styles.systemName}>{getSystemDisplayName(system)}</h3>
+                      <span className={styles.systemCode}>
+                        {system.system_path ?? system.systemName}
+                      </span>
+                    </div>
+                    <div className={styles.roleCount}>{system.roles.length} 個權限</div>
                   </div>
-                  <div className={styles.systemInfo}>
-                    <h3 className={styles.systemName}>
-                      {getSystemDisplayName(system.systemName)}
-                    </h3>
-                    <span className={styles.systemCode}>{system.systemName}</span>
+
+                  <div className={styles.rolesContainer}>
+                    {system.roles.map((role: string, roleIndex: number) => (
+                      <span key={roleIndex} className={styles.roleTag}>
+                        {role}
+                      </span>
+                    ))}
                   </div>
-                  <div className={styles.roleCount}>
-                    {system.roles.length} 個權限
-                  </div>
-                </div>
-                
-                <div className={styles.rolesContainer}>
-                  {system.roles.map((role: string, roleIndex: number) => (
-                    <span key={roleIndex} className={styles.roleTag}>
-                      {role}
+
+                  <div className={styles.cardFooter}>
+                    <span className={styles.clickHint}>
+                      {clickable ? '點擊進入系統' : '權限不足'}
                     </span>
-                  ))}
-                </div>
-                
-                <div className={styles.cardFooter}>
-                  <span className={styles.clickHint}>點擊進入系統</span>
-                  <span className={styles.arrow}>→</span>
-                </div>
-              </Card>
-            ))}
+                    {clickable && <span className={styles.arrow}>→</span>}
+                  </div>
+                </Card>
+              );
+            })}
           </div>
         </div>
       )}
 
-      {/* 如果沒有系統權限，顯示提示 */}
-      {userProfile && (!userProfile.systems || userProfile.systems.length === 0) && (
+      {user && (!user.systems || user.systems.filter(isSystemShellVisible).length === 0) && (
         <div className={styles.noSystems}>
           <p>暫無系統權限資訊</p>
         </div>

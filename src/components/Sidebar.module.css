@@ -120,6 +120,30 @@
   color: white;
 }
 
+.navItemDisabled,
+.navItem.navItemDisabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  color: var(--text-secondary);
+}
+
+.navItemDisabled:hover,
+.navItem.navItemDisabled:hover {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.navItemDisabled:hover i,
+.navItem.navItemDisabled:hover i {
+  color: var(--text-secondary);
+}
+
+.navItemDisabled.active,
+.navItem.navItemDisabled.active {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
 /* 滾動條樣式 */
 .nav::-webkit-scrollbar {
   width: 4px;

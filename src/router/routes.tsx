@@ -17,6 +17,7 @@ import NotFoundPage from '../pages/NotFoundPage';
 import ErrorPage from '../pages/ErrorPage';
 import PrivateRoute from './PrivateRoute';
 import CallbackSSO from '../pages/CallbackSSO';
+import HardwareMaintenanceGuard from './HardwareMaintenanceGuard';
 
 export const router = createBrowserRouter([
   {
@@ -51,15 +52,27 @@ export const router = createBrowserRouter([
       },
       {
         path: 'hardware-maintenance/pricebook-mgt',
-        element: <PricebookMGT />
+        element: (
+          <HardwareMaintenanceGuard>
+            <PricebookMGT />
+          </HardwareMaintenanceGuard>
+        )
       },
       {
         path: 'hardware-maintenance/:rid',
-        element: <RepairFlow />
+        element: (
+          <HardwareMaintenanceGuard>
+            <RepairFlow />
+          </HardwareMaintenanceGuard>
+        )
       },
       {
         path: 'hardware-maintenance',
-        element: <HardwareMaintenanceEntry />
+        element: (
+          <HardwareMaintenanceGuard>
+            <HardwareMaintenanceEntry />
+          </HardwareMaintenanceGuard>
+        )
       },
       {
         path: 'system',

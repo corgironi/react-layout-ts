@@ -47,6 +47,8 @@ interface User {
     {
       "systemName": "attendance",
       "roles": ["admin", "onsite IT"],
+      "system_visible": "Y",
+      "system_path":"attendance",
       "routes": [
         { "system_sub_path": ["daily"],   "visible": "Y", "needVerify": "N" },
         { "system_sub_path": ["leave"],   "visible": "Y", "needVerify": "Y" },
@@ -56,6 +58,8 @@ interface User {
     {
       "systemName": "hardware-maintenance",
       "roles": ["vendor"],
+      "system_visible": "Y",
+      "system_path":"hardware-maintenance"
       "routes": [
         { "system_sub_path": [""],              "visible": "Y", "needVerify": "N" },
         { "system_sub_path": ["pricebook-mgt"], "visible": "Y", "needVerify": "Y", "role": ["admin"] }
@@ -426,3 +430,54 @@ interface AuthState {
   font-size: 0.875rem;
 }
 ```
+
+---
+
+## 九、實作與路由對照（2026-05-15）
+
+> 本節記錄已落地的前端行為，與 §一「尚未修改」之敘述並存：§一為當初討論稿，§九為目前程式狀態。
+
+### 9.1 已新增／修改的檔案
+
+| 檔案 | 說明 |
+|------|------|
+| `src/lib/systemPermissions.ts` | HWMA 與 `user.systems[]` 權限解析：`visible`、`needVerify`、`role`、URL ↔ `system_sub_path` 對照 |
+| `src/router/HardwareMaintenanceGuard.tsx` | 包住 HWMA 三條路由；未通過則顯示權限不足頁 |
+| `src/pages/PermissionDenied.tsx` + `PermissionDenied.module.css` | 「權限不足」與回首頁連結 |
+| `src/router/routes.tsx` | `hardware-maintenance`／`:rid`／`pricebook-mgt` 外層包 `HardwareMaintenanceGuard` |
+| `src/components/Sidebar.tsx` | 出勤仍為寫死連結；**維修管理**依 profile 動態顯示／灰階不可點 |
+| `src/components/Sidebar.module.css` | `.navItemDisabled` 灰階不可點樣式 |
+| `src/pages/HomePage.tsx` | 首頁「員工權限及路口」改讀 `user.systems`；HWMA 卡片依權限可點或 disabled |
+| `src/store/useAuthStore.ts` | `User.systems` 型別改為 `UserSystemEntry[]`（含 `system_visible`、`system_path`、`routes`） |
+
+`PrivateRoute.tsx`、`AppRouter.tsx` 維持僅處理登入與 `RouterProvider`，**未**依計畫另拆 `routeConfig.ts`／`RoleGuard.tsx`；HWMA 授權集中在 `systemPermissions` + `HardwareMaintenanceGuard`。
+
+### 9.2 後端 `system_sub_path` ↔ 前端實際 URL（HWMA）
+
+後端已改用 **具名 sub path**（不再僅依賴空字串 `""` 代表首頁）。前端對照如下（實作於 `getHwmaRouteKeyFromPathname`）：
+
+| 使用者實際進入的 path | 對應後端 `routes[].system_sub_path`（邏輯鍵） | 備註 |
+|------------------------|-----------------------------------------------|------|
+| `/hardware-maintenance` | `main` 或舊版 `[""]`（兩者視為同義） | 列表／HWMA 首頁 |
+| `/hardware-maintenance/:rid` | `flow-mgt` | 子單流程頁（`:rid` 非下列保留段時） |
+| `/hardware-maintenance/pricebook-mgt` | `pricebook-mgt` | 價格手冊 |
+| `/hardware-maintenance/items-mgt` | `items-mgt` | 若日後在 `routes.tsx` 註冊此 path，即自動對應此規則 |
+
+**與 React 元件／路由 path 名稱無關**：元件名稱（如 `HardwareMaintenanceEntry`）不影響權限；只看 **URL** 與 **profile 內 `system_sub_path`** 是否對得上。
+
+### 9.3 權限判斷摘要（與 §2.2 的關係）
+
+- **`system_visible` 非 `Y`**：不顯示該系統於側欄 HWMA 區塊；硬開 URL 由 Guard 擋下。
+- **`visible` 非 `Y`**：該子路由不顯示於側欄；硬開對應 URL → 權限不足。
+- **`needVerify === 'Y'`** 且未帶 `role`：須使用者於該 system 下 **`roles` 陣列非空**。
+- **`role` 有帶且非空**（不論 `needVerify` 為何）：使用者 `roles` 須與 `role` **至少一筆交集**（大小寫不敏感）。此為配合後端在 `needVerify: "N"` 時仍附 `role`（API 粒度）的實作。
+
+若 profile **完全沒有** `routes` 陣列：視為舊資料，HWMA **不擋**（與實作當時相容）。
+
+### 9.4 出勤（attendance）
+
+依 2026-05-14 決策：**先不動**動態子路由與側欄；仍為固定 `/attendance` 導向。之後若要與後端 `routes[].system_sub_path`（daily、leave 等）對齊，可再擴充 `systemPermissions` 或共用設定表。
+
+### 9.5 與後端 JSON 範例的差異（文件同步）
+
+§1.3 範例仍含 `system_path` 後少逗號之筆誤、以及 HWMA 使用 `[""]` 之舊寫法；實際後端可改為 `["main"]`、`["flow-mgt"]`、`["items-mgt"]` 等，**以 §9.2 對照表為準**。

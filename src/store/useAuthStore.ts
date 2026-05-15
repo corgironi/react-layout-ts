@@ -1,10 +1,6 @@
 import { create } from 'zustand';
 import { authAPI } from '../api/api';
-
-interface SystemRole {
-  systemName: string;
-  roles: string[];
-}
+import type { UserSystemEntry } from '../lib/systemPermissions';
 
 interface User {
   useraccount: string;
@@ -14,7 +10,7 @@ interface User {
   role?: string; // 可選的角色
   tel: string;
   location: string;
-  systems: SystemRole[];
+  systems: UserSystemEntry[];
   authType?: 'local' | 'sso'; // 添加認證類型
 }
 
